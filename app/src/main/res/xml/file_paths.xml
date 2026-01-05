@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!----><files-path name="my_file__" path="."/>          <!-- marche avec : getFilesDir(). le fichier se trouve à : authority/images -->
+    <!-- <cache-path name="shared_image" path="images/"/>-->  <!-- marche avec : getcacheDir(). le fichier se trouve à : authority/images -->
+
+    <!-- <external-files-path name="shared_images" path="."/> --> <!-- marche avec : getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS-->
+    <!----><external-path name="my_file" path="."/>         <!-- marche avec : Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)-->
+    <!----><external-files-path name="my_file_" path="." /> <!-- marche avec : getExternalFilesDir() -->
+    <!----><root-path name="my_file___" path="." />         <!-- marche avec external dcim -->
+</paths>
+
+<!--
+ /storage/3334-6339/DCIM/Camera/IMG_20211219_132227.jpg ***external SD card
+ /storage/emulated/0/DCIM/Camera/IMG_20211219_132145.jpg ***tel internal memory
+-->
+ <!--
+ not working
+ <external-files-path name="my_images" path="Android/data/com.google.amara.myapplication1/files/Pictures" />
+ work
+ <external-files-path name="my_images" path="/"/>
+ work
+ path="Pictures"/>
+ work and create a  folder in : data/data/<package>/files
+ <files-path name="name" path="/" />
+ -->

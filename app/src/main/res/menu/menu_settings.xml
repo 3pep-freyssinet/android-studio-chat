@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@+id/help"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:title="@string/help"
+        app:showAsAction="ifRoom" />
+
+    <item android:id="@+id/reset_pwd"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:title="@string/ResetPwd"/>
+
+    <item
+        android:id="@+id/remember_me"
+        android:icon="@drawable/ic_launcher_background"
+        android:checkable="true"
+        android:title="@string/rememberMe" />
+
+    <item android:id="@+id/about"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:title="@string/about" />
+</menu>

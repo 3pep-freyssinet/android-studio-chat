@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">SimpleImageGallery</string>
+    <string name="folderName">Folder Name</string>
+    <string name="appName">Simple Image Gallery</string>
+    <string name="empty">No Images on this device</string>
+
+    <string name="photos_name">Photos</string>
+    <string name="menu_item_cancel">cancel</string>
+    <string name="menu_item_ok">ok</string>
+    <string name="picture_selected">%1$d pictures selected</string>
+    <string name="undo_delete_one_picture">cancel</string>
+    <string name="all_pictures">%1$d photos</string>
+    <string name="info">%1$d / %2$d</string>
+    <string name="picture_name">Name : %1$s</string>
+    <string name="picture_size_Mo">Size : %1$s Mo</string>
+    <string name="picture_size_Ko">Size : %1$s Ko</string>
+    <string name="picture_date">Date : %1$s</string>
+    <string name="picture_path">Path : %1$s</string>
+    <string name="close">Close</string>
+
+    <plurals name="quantities">
+        <item quantity="one">%1$d picture selected</item>
+        <item quantity="other">%1$d pictures selected</item>
+    </plurals>
+</resources>

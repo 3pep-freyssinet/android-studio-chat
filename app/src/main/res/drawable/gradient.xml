@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- border line thick-->
+    <stroke
+        android:width="1dp"
+        android:color="@color/colorWhite"/>
+
+    <corners android:radius="0dp"/>
+
+    <gradient
+        android:startColor="@color/colorPrimary"
+        android:endColor="#FFFFFF"
+        android:type="linear">
+    </gradient>
+
+    <!-- fill color
+    <solid
+        android:color="@color/design_default_color_background"/>
+    -->
+</shape>

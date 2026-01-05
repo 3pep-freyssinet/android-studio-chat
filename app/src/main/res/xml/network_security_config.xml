@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src = "@raw/server"/>
+            <certificates src = "system" />
+
+        </trust-anchors>
+    </base-config>
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+
+        <!--<domain includeSubdomains="true">localhost</domain>-->
+        <!--<domain includeSubdomains="true">10.0.2.2</domain>-->
+
+        <!-- <trust-anchors>-->
+            <!-- <certificates src = "@raw/localhost"/> responsable de l'exception : java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.-->
+            <!--<certificates src = "@raw/localhost"/>  localhost not verified -->
+        <!-- <certificates src = "system" />-->
+        <!-- </trust-anchors>-->
+
+        <!----><domain includeSubdomains="true">android-chat-server.onrender.com/</domain>
+        <!-- Specify the certificate file -->
+        <!--2025-12-31--><pin-set expiration="2024-09-26">
+            <!--<pin digest="SHA-256">BMh9IOwlOFqSEHbPfWk50LL2QZvldSZ0aTgmlWwTW7g=</pin>-->
+            <!----><pin digest="SHA-256">BMh9IOwlOFqSEHbPfWk50LL2QZvldSZ0aTgmlWwTW7h=</pin><!--wrong pin -->
+        <!--<--></pin-set>
+    </domain-config>
+</network-security-config>

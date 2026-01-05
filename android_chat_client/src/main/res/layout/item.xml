@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/ll_message_item"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- we refer to nickname and message defined previously. So, we write '@id/nickname' and '@id/message' without '+'
+    if we create the 'id' we write '@+id/nickname' and '@+id/message' with '+'
+    -->
+
+    <!--
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+            <TextView
+                android:id="@+id/from_nickname"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.1"
+                android:text="From Nickname : "
+                android:textSize="20dp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/from_id"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.2"
+                android:text="From Id : "
+                android:textSize="20dp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/to_nickname"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.1"
+                android:text="To Nickname : "
+                android:textSize="20dp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/to_id"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.2"
+                android:text="To Id : "
+                android:textSize="20dp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/message"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.2"
+                android:text=" message "
+                android:textSize="17dp" />
+
+            <TextView
+                android:id="@+id/time"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.1"
+                android:text=" time "
+                android:textSize="17dp" />
+
+            <TextView
+                android:id="@+id/extra"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.1"
+                android:text=" extra "
+                android:textSize="17dp" />
+    </LinearLayout>
+    -->
+    <LinearLayout
+        android:id="@+id/ll_time"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:paddingTop="5dp">
+        <!--
+        <TextView
+            android:id="@+id/message_from"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.2"
+            android:text="m_from"
+            android:textSize="17dp" />
+            -->
+        <TextView
+            android:id="@+id/message_from_time"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.5"
+            android:text="m_from_t"
+            android:textSize="10sp" />
+
+        <!--
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+         -->
+        <TextView
+            android:id="@+id/message_to_time"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.5"
+            android:text="m_to_t"
+            android:textSize="10sp" />
+
+        <!--
+        <TextView
+            android:id="@+id/message_to"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.2"
+            android:text="m_to"
+            android:textSize="17dp" />
+            -->
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/ll_message"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="5dp"
+        android:layout_marginLeft="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginRight="5dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/message_from_"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginLeft="10dp"
+            android:layout_weight="0.5"
+            android:background="@drawable/rounded_blue_square"
+            android:paddingLeft="5dp"
+            android:paddingTop="5dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="5dp"
+            android:text="message from"
+            android:textColor="@color/colorBlack"
+            android:textSize="16sp" />
+
+        <ImageView
+            android:id="@+id/message_from_seen"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:srcCompat="@drawable/check_from_24"
+            tools:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/message_to_seen"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:srcCompat="@drawable/check_to_24"
+            tools:visibility="gone" />
+
+        <TextView
+            android:id="@+id/message_to_"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_weight="0.5"
+            android:background="@drawable/rounded_green_square"
+            android:paddingLeft="5dp"
+            android:paddingTop="5dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="5dp"
+            android:text="message to"
+            android:textColor="@color/colorBlack"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- attachment items layout -->
+    <LinearLayout
+        android:id="@+id/ll_attachment_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/flottant_view_from"
+            android:layout_width="0dp"
+            android:layout_height="30dp"
+            android:layout_weight="0.0" />
+
+        <ImageView
+            android:id="@+id/thumb_attachment_from"
+            android:layout_width="0dp"
+            android:layout_height="30dp"
+            android:layout_weight="0.1"
+            android:paddingLeft="5dp" />
+
+        <TextView
+            android:id="@+id/link_attachment_from"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="10dp"
+            android:layout_marginLeft="10dp"
+            android:layout_weight="0.6"
+            android:adjustViewBounds="false"
+            android:text="link attachment from" />
+
+        <View
+            android:id="@+id/flottant_view_to"
+            android:layout_width="0dp"
+            android:layout_height="30dp"
+            android:layout_weight="0.3" />
+
+        <ImageView
+            android:id="@+id/thumb_attachment_to"
+            android:layout_width="0dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_weight="0.0" />
+
+        <TextView
+            android:id="@+id/link_attachment_to"
+            android:layout_width="0dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="10dp"
+            android:layout_marginLeft="10dp"
+            android:layout_weight="0.0"
+            android:gravity="center_vertical"
+            android:text="link attachment to" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/download_attachment_progressBar"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:visibility="invisible" />
+
+</LinearLayout>

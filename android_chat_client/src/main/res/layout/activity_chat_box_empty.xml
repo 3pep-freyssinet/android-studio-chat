@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/rl_activity_chat_box_empty"
+    tools:context="com.example.aymen.androidchat.ChatBoxActivityEmpty">
+    <LinearLayout
+        android:weightSum="3"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!--
+        <ImageView
+            android:id="@+id/imageView_empty_users"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:srcCompat="@drawable/ic" />
+        -->
+
+        <TextView
+            android:id="@+id/tv_empty_users"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No Users till now from fragment" />
+
+    </LinearLayout>
+
+
+</RelativeLayout>

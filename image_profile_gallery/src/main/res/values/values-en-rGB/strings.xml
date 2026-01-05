@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SimpleImageGallery</string>
+    <string name="menu_item_cancel">cancel</string>
+    <string name="menu_item_ok">ok</string>
+    <string name="photos_name">Photos</string>
+</resources>

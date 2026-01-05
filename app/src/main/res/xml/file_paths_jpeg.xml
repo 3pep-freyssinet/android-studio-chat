@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- <files-path name="my_pdf" path="/"/>-->  <!-- marche avec : getFilesDir()-->
+    <!--<cache-path name="shared_images" path="images/"/>--><!-- 'images/' le name de la branche ajoutée lors de la creation de new File() -->
+    <!-- <cache-path name="shared_jpeg" path="jpeg/"/> --> <!-- 'jpeg' correspond à la branche 'mimeType' dans File(getCacheDir(), mimeType). See 'TabChatActivity.saveBase64String()'-->
+    <!-- <external-files-path name="my_pdf" path="/"/> --> <!-- marche avec : getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS-->
+    <external-path name="shared_jpeg" path="/"/>  <!-- marche avec : Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)-->
+ </paths>
+ <!--
+ not working
+ <external-files-path name="my_images" path="Android/data/com.google.amara.myapplication1/files/Pictures" />
+ work
+ <external-files-path name="my_images" path="/"/>
+ work
+ path="Pictures"/>
+ work and create a  folder in : data/data/<package>/files
+ <files-path name="name" path="/" />
+ -->

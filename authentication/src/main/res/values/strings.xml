@@ -1,0 +1,35 @@
+<resources>
+    <string name="app_name">Authentication</string>
+    <string name="description">toggle password </string>
+    <string name="username">Saisir un identifiant</string>
+    <string name="password">Saisir un mot de passe</string>
+    <string name="password1">Saisir de nouveau le mot de passe</string>
+    <string name="changer_mot_passe">Changer le mot de passe</string>
+    <string name="re_member_me">Se rappeler de moi</string>
+    <string name="connect">Connect</string>
+    <string name="new_password">Nouveau mot de passe</string>
+    <string name="my_gallery">Mes photos</string>
+    <string name="my_marks">Mon pronote</string>
+    <string name="my_notes">Mes notes</string>
+    <string name="my_messages">Mes messages</string>
+    <string name="first_time_login">Saisie identifiants</string>
+    <string name="login">Connexion</string>
+    <string name="change_password">Changement du mot de passe</string>
+    <string name="mot_passe_oublie">Mot de passe oublié ?</string>
+    <string name="userInfo">L\'identifiant est composé de 6 à 8 caractères de l\'alphabet non accentué,\n<li>minuscules ou majuscules et</li>\n<li>des chiffres entre 0 et 9</li>.</string>>
+    <string name="pwdInfo">"Le mot de passe est composé de 6 à 8 caractères et ayant au moins :\n<li>une lettre minuscule et majuscule de l\'alphabet non accentué</li>,\n<li>un chiffre entre 0 et 9</li>,\n<li>un caractère spécial : #?!@$%^\&amp;*-</li>"</string>
+    <string name="identifier">Identifier</string>
+    <string name="password_">Password</string>
+    <string name="quit">Quit</string>
+    <string name="valider">Valider</string>
+    <string name="re_enter_password">Re-enter password</string>
+    <string name="register_status" />
+    <string name="not_registered">Not registered yet ?"</string>
+    <string name="number_of_tries">Number of tries :</string>
+    <string name="login_status_failure">Login status : Failure</string>
+
+</resources>
+
+<!--
+<string name="not_registered">Not registered ?</string>
+-->

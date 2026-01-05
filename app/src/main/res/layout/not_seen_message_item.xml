@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/ll_message_item"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:background="#00ff0000"
+    android:orientation="vertical">
+
+    <!-- we refer to nickname and message defined previously. So, we write '@id/nickname' and '@id/message' without '+'
+    if we create the 'id' we write '@+id/nickname' and '@+id/message' with '+'
+    -->
+    <!--android:adjustViewBounds="false"-->
+
+    <LinearLayout
+        android:id="@+id/ll_1"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="0.80"
+        android:background="#00ffff00"
+        android:orientation="vertical">
+
+        <RelativeLayout
+            android:id="@+id/rl_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/colorWhite"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/not_seen_message_image_profile"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="top"
+                android:layout_marginStart="10dp"
+                android:layout_marginLeft="0dp"
+                android:layout_marginEnd="10dp"
+                android:adjustViewBounds="true"
+                android:background="#000000ff"
+                android:contentDescription="TODO"
+                app:srcCompat="@drawable/amy_jones"
+                tools:visibility="visible" />
+
+            <RelativeLayout
+                android:id="@+id/rl_2"
+                android:layout_width="25dp"
+                android:layout_height="25dp"
+                android:layout_alignRight="@id/not_seen_message_image_profile"
+                android:layout_alignBottom="@id/not_seen_message_image_profile"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/not_seen_message_image_profile_counter"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:adjustViewBounds="true"
+                    app:srcCompat="@drawable/circular_shape"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/not_seen_message_image_profile_counter_"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:layout_centerVertical="true"
+                    android:text="99"
+                    android:textSize="15sp" />
+
+            </RelativeLayout>
+
+        </RelativeLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/not_seen_message_nickname"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="0.20"
+        android:background="#0000ff00"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="0dp"
+        android:text="nickname"
+        android:textSize="18sp" />
+    <!--
+    <TextView
+        android:id="@+id/not_seen_message_nb_messages"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="0dp"
+        android:layout_weight="0.20"
+        android:background="#ff00ffff"
+        android:text="0 message"
+        android:textSize="18sp" />
+    -->
+</LinearLayout>

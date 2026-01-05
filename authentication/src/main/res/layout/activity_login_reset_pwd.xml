@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.google.amara.authenticationretrofit.LoginActivity">
+
+        <!-- identifier-->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/outlinedTextField_identifier"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="250dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginLeft="10dp"
+            android:layout_marginTop="40dp"
+            android:hint="@string/identifier"
+            app:hintTextAppearance="@style/TextInputLayoutHintText"
+
+            app:boxStrokeColor="@color/black"
+            app:boxStrokeWidth="3dp"
+
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.132"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textView">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/textInputEditText_identifier"
+                android:layout_width="match_parent"
+                android:textSize="20sp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:minHeight="48dp"
+                android:maxLength="20"
+                android:textColor="@color/black"
+                tools:layout_editor_absoluteX="0dp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+        <!-- end identifier -->
+
+        <!-- pwd -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/outlinedTextField_pwd"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="250dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginLeft="10dp"
+            android:layout_marginTop="40dp"
+            android:enabled="false"
+
+            android:hint="@string/password_"
+            app:hintTextAppearance="@style/TextInputLayoutHintText"
+
+            app:boxStrokeColor="@color/black"
+            app:boxStrokeWidth="3dp"
+
+            app:counterOverflowTextColor="@color/colorRed"
+            app:counterTextColor="@color/black"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.132"
+
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textView"
+            app:passwordToggleEnabled="true"
+            app:passwordToggleTint="@color/colorPrimary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/textInputEditText_pwd"
+                android:layout_width="match_parent"
+
+                android:layout_height="wrap_content"
+                android:layout_marginTop="100dp"
+                android:inputType="textPassword"
+                android:minHeight="48dp"
+                android:maxLength="20"
+                android:textSize="20sp"
+                android:textColor="@color/black"
+                tools:layout_editor_absoluteX="0dp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+        <!-- end pwd1 -->
+
+    <!-- login status -->
+    <TextView
+        android:id="@+id/tv_login_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
+        android:visibility="invisible"
+        android:text="@string/login_status_failure"/>
+
+    <!-- counter -->
+    <TextView
+        android:id="@+id/textView_Counter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="20dp"
+        android:text="@string/number_of_tries"
+        android:visibility="visible" />
+
+    <!-- buttons -->
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_login"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:enabled="false"
+                android:text="@string/connect"
+                android:textAllCaps="false" />
+
+        <!-- Empty View is trying to take the maximum amount of space, leaving room for the button and the checkBox. -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btn_quit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="20dp"
+                android:textAllCaps="false"
+                android:text="@string/quit" />
+
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_register"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="30dp"
+                android:layout_marginLeft="10dp"
+                android:layout_weight="0.45"
+                android:textAllCaps="false"
+                android:text="@string/not_registered" />
+            <View
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.1"
+                />
+            <Button
+                android:id="@+id/btn_reset_pwd"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="30dp"
+                android:layout_marginRight="10dp"
+                android:layout_weight="0.45"
+                android:textAllCaps="false"
+                android:text="Reset password" />
+        </LinearLayout>
+
+</LinearLayout>
+
+<!--
+app:counterEnabled="true"
+            app:counterMaxLength="20"
+            app:counterOverflowTextColor="@color/red"
+            app:counterTextColor="@color/black"
+
+            app:endIconDrawable="@drawable/red_cross_transparent"
+            app:endIconMode="clear_text"
+            app:endIconTint="@null"
+            app:endIconTintMode="screen"
+
+            app:errorEnabled="true"
+            app:errorIconDrawable="@drawable/error_transparent"
+            app:errorIconTint="@null"
+            app:errorTextColor="@color/red"
+
+            app:helperText="valid identifier required"
+            app:helperTextEnabled="true"
+            app:helperTextTextColor="@color/blue"
+
+             app:counterEnabled="true"
+            app:counterMaxLength="20"
+-->
