@@ -19,4 +19,12 @@
     <color name="colorWhite">#FFFFFF</color>
     <color name="colorYellow">#FFFF00</color>
     <color name="colorCyan">#00FFFF</color>
+    <color name="colorRed">#FF0000</color>
+
+    <array name="status">
+        <item>#FFFF0000</item>
+        <item>#FF00FF00</item>
+        <item>#FFFFA500</item>
+        <item>#FF000000</item>
+    </array>
 </resources>

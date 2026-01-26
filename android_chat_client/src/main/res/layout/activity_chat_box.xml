@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:id="@+id/rl_activity_chat_box"
-    tools:context="com.example.aymen.androidchat.ChatBoxActivity">
+    tools:context="com.example.aymen.androidchat.ChatBoxUsers">
     <LinearLayout
         android:id="@+id/ll_nb_users"
         android:weightSum="3"

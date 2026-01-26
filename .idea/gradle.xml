@@ -9,9 +9,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/android_chat_client" />
             <option value="$PROJECT_DIR$/app" />
-            <option value="$PROJECT_DIR$/image_profile_gallery" />
+            <option value="$PROJECT_DIR$/authentication_ssl" />
           </set>
         </option>
         <option name="resolveExternalAnnotations" value="false" />

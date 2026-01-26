@@ -9,8 +9,6 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.graphics.Color;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.util.Base64;
 import android.view.LayoutInflater;
@@ -59,8 +57,8 @@ public class ChatUserAdapter extends RecyclerView.Adapter<ChatUserAdapter.MyView
     public ChatUserAdapter(UserData userData, FragmentActivity context) {
         this.userData   = userData;
         //this.chatUsers  = chatUsers;
-        if(ChatBoxActivity.UsersDataHolder.hasData()){
-            this.chatUsers = ChatBoxActivity.UsersDataHolder.getData();
+        if(com.example.aymen.androidchat.ChatBoxUsers.UsersDataHolder.hasData()){
+            this.chatUsers = com.example.aymen.androidchat.ChatBoxUsers.UsersDataHolder.getData();
         }
         this.context    = context;
     }

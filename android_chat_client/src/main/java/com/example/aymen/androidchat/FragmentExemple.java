@@ -52,7 +52,7 @@ public class FragmentExemple extends Fragment{
             //if the nickname is not empty go to chatbox activity and add the nickname to the intent extra
                 int i = 0;
              if(!nickname.getText().toString().isEmpty()){
-                 //Intent intent  = new Intent(getActivity(), ChatBoxActivity.class);
+                 //Intent intent  = new Intent(getActivity(), ChatBoxUsers.class);
                  //intent.putExtra("fragment_index", 0); //pass zero for Fragment one.
                  //intent.putExtra(NICKNAME, nickname.getText().toString());
                  //startActivity(intent);
@@ -67,7 +67,7 @@ public class FragmentExemple extends Fragment{
     /*
     @Override
     public void sendData(String data) {
-        ChatBoxActivity fragmentB = new ChatBoxActivity (); //fragment receiver or target
+        ChatBoxUsers fragmentB = new ChatBoxUsers (); //fragment receiver or target
         Bundle args = new Bundle();
         args.putString("data", data);
         fragmentB .setArguments(args);

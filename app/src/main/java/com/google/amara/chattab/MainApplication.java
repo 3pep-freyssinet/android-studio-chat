@@ -10,13 +10,39 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.net.ConnectivityManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 
+import com.google.amara.chattab.utils.JwtUtils;
 import com.google.android.material.snackbar.Snackbar;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.net.URISyntaxException;
+import java.util.HashMap;
+
+import io.socket.client.Ack;
+import io.socket.client.IO;
+import io.socket.client.Socket;
+import io.socket.emitter.Emitter;
 
 public class MainApplication extends Application {
 
+    public static final String SOCKET_URL = "https://android-chat-server.onrender.com";
+
+    //Alice - redmi
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE5NSwidXNlcm5hbWUiOiJBbGljZSIsImlhdCI6MTc2OTQxNzkzNCwiZXhwIjoxNzY5NTA0MzM0fQ.NKRCgR4JQjfKrxiGX3VMqa78KhY6UW6389JZz5WrqnY";
+    private static final String TAG        = "SocketTestActivity";
+
+
+    private static Socket socket;
+
+    //Bob - harry
+    //private static final String jwtToken   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjE4NiwidXNlcm5hbWUiOiJib2Jib2IiLCJpYXQiOjE3Njg2NDM5MzMsImV4cCI6MTc2ODczMDMzM30.5piLrANJACVgK4QDHZ26hkNmIVJKGP5IwTEF-IRC4pQ";
 
     private BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
 
@@ -36,13 +62,102 @@ public class MainApplication extends Application {
 
 
     @Override
-    public void onCreate(){
+    public void onCreate() {
         super.onCreate();
 
-        //register broadcast receiver
-        registerReceiver(networkStateReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+        //String token = JwtStorage.getToken(this);
+        //if (token == null) return;
+
+        //String socketUrl = BuildConfig.SOCKET_URL;
+        String userId = JwtUtils.getUserId(JWT_TOKEN); // decode JWT "userId"
+
+        SocketManager.init(SOCKET_URL, JWT_TOKEN, userId);
+        SocketManager.connect();
+    }
+
+
+        /*
+        try {
+            IO.Options options = new IO.Options();
+            //options.transports = new String[]{"polling", "websocket"};
+            options.transports = new String[]{"websocket"};
+            options.reconnection = true;
+            options.forceNew = true;
+
+            options.auth = new HashMap<>();
+            options.auth.put("token", JWT_TOKEN);
+
+            socket = IO.socket(SOCKET_URL, options);
+
+            // 🔥 CORE EVENTS
+            socket.on(Socket.EVENT_CONNECT, args -> {
+                Log.d(TAG, "✅ CONNECTED");
+                Log.d(TAG, "socket.id = " + socket.id());
+            });
+
+            socket.on(Socket.EVENT_DISCONNECT, args ->
+                    Log.d(TAG, "❌ DISCONNECTED: " + args[0])
+            );
+
+            socket.on(Socket.EVENT_CONNECT_ERROR, args ->
+                    Log.e(TAG, "🚨 CONNECT ERROR: " + args[0])
+            );
+
+            socket.on(Socket.EVENT_CONNECT_ERROR, args ->
+                    Log.e(TAG, "🚨 SOCKET ERROR: " + args[0])
+            );
+            */
+
+            /*
+            // 🔥 CUSTOM EVENT
+            socket.on("chat:users:list", args -> {
+                Log.d(TAG, "📥 chat:users:list RECEIVED");
+
+                JSONArray array = (JSONArray) args[0];
+                Log.d(TAG, "Users count = " + array.length());
+
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject o = array.optJSONObject(i);
+                    Log.d(TAG, "User: " + o.toString());
+                }
+            });
+
+
+            Log.d(TAG, "Connecting socket...");
+            socket.connect();
+
+        } catch (URISyntaxException e) {
+            Log.e(TAG, "Invalid socket URL", e);
+        }
+        */
+
+        /*
+        //String token = JwtStorage.getToken(this); // already exists in your app
+        String userId = JwtUtils.getUserId(jwtToken); // decode JWT "userId"
+        //String socketUrl = BuildConfig.SOCKET_URL;
+
+        SocketManager.init(
+                SERVER_URL,
+                jwtToken,
+                userId
+        );
+
+        SocketManager.connect();
+        */
+        /*
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            Socket s = SocketManager.getSocket();
+            Log.d("SocketTest", "connected = " + s.connected());
+            Log.d("SocketTest", "id = " + s.id());
+        }, 3000);
 
     }
+    */
+
+    //public static Socket getSocket(){
+    //    return socket;
+    //}
+
 
     @Override
     public void onConfigurationChanged(Configuration newConfiguration) {

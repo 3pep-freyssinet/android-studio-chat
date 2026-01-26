@@ -30,7 +30,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ChatBoxActivity"></activity>
+        <activity android:name=".ChatBoxUsers"></activity>
         <activity android:name=".BlankFragment"></activity>
         -->
     </application>

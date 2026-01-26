@@ -35,7 +35,7 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
     private final int blacklist = R.drawable.blacklist_36;
     private final int recover   = R.drawable.recover_36;
 
-    private final ChatBoxActivity chatBoxActivity;    //it needed by 'Snackbar' and to call interface in 'chatBoxMessage'
+    private final ChatBoxUsers chatBoxUsers;    //it needed by 'Snackbar' and to call interface in 'chatBoxMessage'
     private RecyclerView    userRecyclerView;
 
     private int swipeDirection;
@@ -45,9 +45,9 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
      * defaults
      * and if you want to customize behavior per ViewHolder, you can override
      */
-    public UserSwipeRecyclerView(int dragDirs, int swipeDirs, ChatBoxActivity chatBoxActivity) {
+    public UserSwipeRecyclerView(int dragDirs, int swipeDirs, ChatBoxUsers chatBoxUsers) {
         super(dragDirs, swipeDirs);
-        this.chatBoxActivity = chatBoxActivity;
+        this.chatBoxUsers = chatBoxUsers;
     }
 
     @Override
@@ -76,7 +76,7 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
         String blacklisted     = chatUserList.get(position).nickname;
         String blacklistAuthor = chatUserList.get(position).blacklistAuthor;
         if(Arrays.asList(0, 1, 2).contains(status))return ItemTouchHelper.RIGHT;
-        if(3 == status & (chatBoxActivity.Nickname.equals(blacklistAuthor)))return ItemTouchHelper.LEFT;
+        if(3 == status & (chatBoxUsers.Nickname.equals(blacklistAuthor)))return ItemTouchHelper.LEFT;
         return 0;   //default
     }
 
@@ -108,7 +108,7 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
         ChatUser chatUser = chatUserList.get(position);
 
         //notifify
-        Snackbar snackbar = Snackbar.make(chatBoxActivity.getView(),
+        Snackbar snackbar = Snackbar.make(chatBoxUsers.getView(),
                 (direction == ItemTouchHelper.RIGHT) ?
                         "Blacklist : " + chatUser.getNickname() : "Recover : " + chatUser.getNickname(),
                 Snackbar.LENGTH_LONG);
@@ -118,10 +118,10 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
                 // Nothing is done. The user is not blacklisted or recovered. Dismiss the snackbar
                 //When we have this exception : "Only the original thread that created a view hierarchy can touch its views"
                 //we use : 'runOnUiThread(new Runnable()'
-                chatBoxActivity.getActivity().runOnUiThread(new Runnable() {
+                chatBoxUsers.getActivity().runOnUiThread(new Runnable() {
                     public void run() {
-                        ChatBoxActivity.UsersDataHolder.setData(chatUserList);
-                        chatUserAdapter[0] = new ChatUserAdapter(userData, chatBoxActivity.getActivity());
+                        com.example.aymen.androidchat.ChatBoxUsers.UsersDataHolder.setData(chatUserList);
+                        chatUserAdapter[0] = new ChatUserAdapter(userData, chatBoxUsers.getActivity());
 
                         // notify the adapter to update the recycler view
                         chatUserAdapter[0].notifyDataSetChanged();
@@ -142,10 +142,10 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
                     if(direction == ItemTouchHelper.LEFT){
                         //blacklist : grey image profile, disable  'selectedNickname' in 'Nickname' pane
                         chatUser.status = ChatUser.userConnect;
-                        //chatBoxActivity.updateChatListUsers(chatUser.nickname, chatUser.chatId);
+                        //chatBoxUsers.updateChatListUsers(chatUser.nickname, chatUser.chatId);
 
                         //notify the user 'chatUser.nickname' that it is blacklisted
-                        chatBoxActivity.userNotification.notifyBlacklist(chatBoxActivity.Nickname, //author of blacklist
+                        chatBoxUsers.userNotification.notifyBlacklist(chatBoxUsers.Nickname, //author of blacklist
                                 chatUser.nickname,  //the blacklisted user
                                 chatUser.chatId,    //the blacklisted user id
                                 "recover");
@@ -154,8 +154,8 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
                         chatUser.blacklistAuthor = null;
 
                         //update the adapter
-                        ChatBoxActivity.UsersDataHolder.setData(chatUserList);
-                        chatUserAdapter[0] = new ChatUserAdapter(userData, chatBoxActivity.getActivity());
+                        com.example.aymen.androidchat.ChatBoxUsers.UsersDataHolder.setData(chatUserList);
+                        chatUserAdapter[0] = new ChatUserAdapter(userData, chatBoxUsers.getActivity());
 
                         // notify the adapter to update the recycler view
                         chatUserAdapter[0].notifyDataSetChanged();
@@ -167,19 +167,19 @@ public class UserSwipeRecyclerView extends ItemTouchHelper.SimpleCallback {
                     if(direction == ItemTouchHelper.RIGHT){
                         //recover : clear image profile, enable  'selectedNickname' in 'Nickname' pane
                         chatUser.status          = ChatUser.userBlacklist;
-                        chatUser.blacklistAuthor = chatBoxActivity.Nickname;
+                        chatUser.blacklistAuthor = chatBoxUsers.Nickname;
 
-                        //chatBoxActivity.updateChatListUsers(chatUser.nickname, chatUser.chatId);
+                        //chatBoxUsers.updateChatListUsers(chatUser.nickname, chatUser.chatId);
 
                         //notify the user 'chatUser.nickname' that it is recovered
-                        chatBoxActivity.userNotification.notifyBlacklist(chatBoxActivity.Nickname, //author of blacklist
+                        chatBoxUsers.userNotification.notifyBlacklist(chatBoxUsers.Nickname, //author of blacklist
                                 chatUser.nickname,  //the blacklisted user
                                 chatUser.chatId,
                                 "blacklist");
 
                         //update the adapter
-                        ChatBoxActivity.UsersDataHolder.setData(chatUserList);
-                        chatUserAdapter[0] = new ChatUserAdapter(userData, chatBoxActivity.getActivity());
+                        com.example.aymen.androidchat.ChatBoxUsers.UsersDataHolder.setData(chatUserList);
+                        chatUserAdapter[0] = new ChatUserAdapter(userData, chatBoxUsers.getActivity());
 
                         // notify the adapter to update the recycler view
                         chatUserAdapter[0].notifyDataSetChanged();

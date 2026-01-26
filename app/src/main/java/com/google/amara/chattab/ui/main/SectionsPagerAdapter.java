@@ -7,17 +7,15 @@ import android.view.ViewGroup;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentPagerAdapter;
 import androidx.fragment.app.FragmentStatePagerAdapter;
 import androidx.viewpager.widget.PagerAdapter;
 
+
+import com.google.amara.chattab.ChatBoxMessage;
+import com.google.amara.chattab.ChatBoxUsers;
 import com.google.amara.chattab.R;
 import com.google.amara.chattab.TabChatActivity;
-
-import java.io.Serializable;
-import java.util.List;
 
 /**
  * A [FragmentPagerAdapter] that returns a fragment corresponding to
@@ -52,7 +50,7 @@ public class SectionsPagerAdapter extends FragmentStatePagerAdapter {   //see ab
         switch (position) {
             case 0:
                 //return new TabbedFragment();
-                Fragment f0 = new com.example.aymen.androidchat.ChatBoxActivity();
+                Fragment f0 = new ChatBoxUsers();
 
                 //set tag for this fragment ---> exception : the fragment is already added
                 //fragmentManager.beginTransaction().add(f0, "chat_box_user").commit();
@@ -74,7 +72,7 @@ public class SectionsPagerAdapter extends FragmentStatePagerAdapter {   //see ab
 
             case 1:
                 //return new TabbedFragment();
-                Fragment f1 = new com.example.aymen.androidchat.ChatBoxMessage();
+                Fragment f1 = new ChatBoxMessage();
 
                 //set tag for this fragment ----->exception : the fragment is already added
                 //fragmentManager.beginTransaction().add(f1, "chat_box_message").commit();

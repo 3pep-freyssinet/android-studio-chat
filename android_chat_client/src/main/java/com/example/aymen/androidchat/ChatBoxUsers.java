@@ -7,14 +7,12 @@ import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -42,8 +40,8 @@ import java.util.Iterator;
 import java.util.List;
 
 //Ce fragment est défini dans 'TabChatActivity-SectionPager'
-public class ChatBoxActivity extends Fragment {
-    //public class ChatBoxActivity extends AppCompatActivity {
+public class ChatBoxUsers extends Fragment {
+    //public class ChatBoxUsers extends AppCompatActivity {
     public RecyclerView     userRecylerView;
     public List<ChatUser>   chatUserList;
     private ChatUserAdapter chatUserAdapter;
@@ -73,7 +71,7 @@ public class ChatBoxActivity extends Fragment {
                 //btn.setEnabled(false);
 
                 if(!isVisible())return;
-                //Snackbar.make(getView(), "Status ChatBoxActivity :  = " + networkStatus, Snackbar.LENGTH_LONG).show();
+                //Snackbar.make(getView(), "Status ChatBoxUsers :  = " + networkStatus, Snackbar.LENGTH_LONG).show();
 
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(getActivity());
                 alertDialog.setMessage("No Internet connection");
@@ -152,7 +150,7 @@ public class ChatBoxActivity extends Fragment {
         View view      = inflater.inflate(R.layout.activity_chat_box, container, false);
 
         //connected users
-        imageProfile   = (ImageView) view.findViewById(R.id.imageView);
+        //imageProfile   = (ImageView) view.findViewById(R.id.imageView);
         tvNbUsers      = (TextView) view.findViewById(R.id.tv_nb_users);
 
         userRecylerView = (RecyclerView) view.findViewById(R.id.user_list);
@@ -198,7 +196,7 @@ public class ChatBoxActivity extends Fragment {
         userRecylerView.setLayoutManager(mLayoutManager);
         userRecylerView.setItemAnimator(new DefaultItemAnimator());
 
-        UserSwipeRecyclerView chatUserSwipeRecyclerView = new UserSwipeRecyclerView(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT , ChatBoxActivity.this);
+        UserSwipeRecyclerView chatUserSwipeRecyclerView = new UserSwipeRecyclerView(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT , ChatBoxUsers.this);
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(chatUserSwipeRecyclerView);
         itemTouchHelper.attachToRecyclerView(userRecylerView);
 
@@ -219,7 +217,7 @@ public class ChatBoxActivity extends Fragment {
                 //getFragmentManager().getFragments();
 
                 //getFragmentManager().beginTransaction()
-                //            .remove( new ChatBoxActivity())
+                //            .remove( new ChatBoxUsers())
                 //            .commitNow();
                 //getFragmentManager().beginTransaction()
                 //        .show(new AllUsersFragment())
@@ -489,7 +487,7 @@ public class ChatBoxActivity extends Fragment {
     /*
     @Override
     public void finish() {
-        // Prepare data intent to send back to 'MainActivity' which has sent this intent 'ChatBoxActivity'
+        // Prepare data intent to send back to 'MainActivity' which has sent this intent 'ChatBoxUsers'
         //Intent data = new Intent();
         //data.putExtra("chat_box_status", chatBoxStatus);
         //setResult(INTENT_RESULT_OK_CHATBOX_ACTIVITY, data); //the data are returned to 'onActivityResult' of 'MainActivity'.

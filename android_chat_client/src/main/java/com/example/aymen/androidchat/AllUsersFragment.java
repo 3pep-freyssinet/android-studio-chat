@@ -38,7 +38,7 @@ import java.util.List;
 
 //Ce fragment est défini dans 'TabChatActivity-SectionPager'
 public class AllUsersFragment extends Fragment {
-    //public class ChatBoxActivity extends AppCompatActivity {
+    //public class ChatBoxUsers extends AppCompatActivity {
     public RecyclerView     usersRecylerView;
     public List<ChatUser>   chatUserList;
     private ChatUserAdapter chatUserAdapter;
@@ -407,7 +407,7 @@ public class AllUsersFragment extends Fragment {
     /*
     @Override
     public void finish() {
-        // Prepare data intent to send back to 'MainActivity' which has sent this intent 'ChatBoxActivity'
+        // Prepare data intent to send back to 'MainActivity' which has sent this intent 'ChatBoxUsers'
         //Intent data = new Intent();
         //data.putExtra("chat_box_status", chatBoxStatus);
         //setResult(INTENT_RESULT_OK_CHATBOX_ACTIVITY, data); //the data are returned to 'onActivityResult' of 'MainActivity'.

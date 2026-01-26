@@ -10,7 +10,7 @@ import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
 
-import com.example.aymen.androidchat.Message;
+
 import com.google.amara.chattab.upload.FileUploadManager;
 import com.google.amara.chattab.upload.UploadFileMoreDataReqListener;
 

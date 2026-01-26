@@ -1,0 +1,164 @@
+package com.google.amara.chattab.ui.main;
+
+import android.content.Context;
+import android.net.Uri;
+import android.util.Log;
+
+import androidx.annotation.Nullable;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
+
+import com.google.amara.chattab.ChatMessage;
+import com.google.amara.chattab.ChatUser;
+import com.google.amara.chattab.SocketManager;
+
+import java.util.List;
+import java.util.UUID;
+
+
+
+public class ChatSharedViewModel extends ViewModel {
+    //String localId = UUID.randomUUID().toString();
+
+    private final ChatRepository repository              = ChatRepository.get();
+    private final MutableLiveData<ChatUser> selectedUser = new MutableLiveData<>();
+    private final LiveData<List<ChatMessage>> messages   = repository.getMessages();
+    private final MutableLiveData<Uri> pendingImage      = new MutableLiveData<>();
+
+    private final MutableLiveData<Uri> draftImage        = new MutableLiveData<>();
+    private final MutableLiveData<String> draftText      = new MutableLiveData<>("");
+
+    public LiveData<Uri> getDraftImage() { return draftImage; }
+    public LiveData<String> getDraftText() { return draftText; }
+
+    public void setDraftImage(Uri uri) { draftImage.setValue(uri); }
+    public void setDraftText(String text) { draftText.setValue(text); }
+
+    public void clearDraft() {
+        draftImage.setValue(null);
+        draftText.setValue("");
+    }
+
+    public LiveData<Uri> getPendingImage() {
+        return pendingImage;
+    }
+
+    public void setPendingImage(Uri uri) {
+        pendingImage.setValue(uri);
+    }
+
+
+    public LiveData<ChatUser> getSelectedUser() {
+        return selectedUser;
+    }
+
+    public LiveData<List<ChatMessage>> getMessages() {
+        return repository.getMessages();
+    }
+
+    public void selectUser(ChatUser user) {
+        selectedUser.setValue(user);
+        repository.joinConversation(user);
+    }
+
+    public LiveData<List<ChatUser>> getUsers() {
+        return repository.getUsers();
+    }
+
+    public void startChat() {
+        repository.start();
+    }
+
+    /*
+    public void sendMessage(String text) {
+
+        String myId = SocketManager.getUserId();
+
+        // 1️⃣ Optimistic message
+        ChatMessage optimistic = new ChatMessage(
+                myId,
+                selectedUser.getValue().getId(),
+                text,
+                "Sending...",
+                "pending",
+                "image",
+                true
+        );
+
+        List<ChatMessage> current = messages.getValue();
+        if (current == null) current = new ArrayList<>();
+
+        List<ChatMessage> updated = new ArrayList<>(current);
+        updated.add(optimistic);
+        messages.setValue(updated);
+
+        // 2️⃣ Send to backend
+        ChatRepository.get().sendMessage(text);
+    }
+    */
+
+    public void sendMessage(String localId,  String text, @Nullable Uri imageUri, Context context) {
+
+        ChatUser user = selectedUser.getValue();
+        if (user == null) return;
+
+        String myId = SocketManager.getUserId();
+
+        // 🟡 1. Optimistic bubble (shows instantly)
+        ChatMessage optimistic = new ChatMessage(
+                localId,
+                myId,
+                user.getId(),
+                text,           // message
+                imageUri != null ? imageUri.toString() : null,   // imageUrl (no image yet)
+                "sending...",   // sent_at (temporary)
+                "pending",      // seen
+                imageUri != null ? "image" : "text",         // type
+                true            // pending (still not confirmed by server)
+        );
+        optimistic.setLocalId(localId);
+        optimistic.setUploadProgress(0);
+
+        repository.addLocalMessage(optimistic);
+
+        // 🟢 2. If there is an image → upload first
+        if (imageUri != null) {
+            repository.uploadImageAndSend(context, text, imageUri, user.getId(), localId);
+        } else {
+            // 🔵 3. Text only
+            repository.sendTextMessage(text, user.getId(), localId);
+        }
+    }
+
+
+    /*
+    public void sendImageMessage(String imageUrl) {
+
+        String myId   = SocketManager.getUserId();
+        ChatUser user = selectedUser.getValue();
+        if (user == null) return;
+
+        ChatMessage optimistic = new ChatMessage(
+                myId,
+                user.getId(),
+                null,   //captionText,    // message (can be null or caption)
+                imageUrl,       // imageUrl
+                "sending...",
+                "pending",
+                "image",
+                true
+        );
+
+
+        repository.addLocalMessage(optimistic); // show instantly
+        repository.sendImageMessage(user.getId(), imageUrl);  // send to backend
+    }
+     */
+
+}
+
+
+
+
+

@@ -577,6 +577,7 @@ public class NavigatorActivity extends    AppCompatActivity
     }
 
     private void onConnect1(){
+        int i = 0;
 
         /*
         //without ssl

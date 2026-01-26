@@ -166,7 +166,7 @@ public class Settings extends    AppCompatActivity
     protected void onResume() {
         super.onResume();
         // call method
-        checkConnection();
+        //checkConnection();
 
         //manage user interaction
         //startHandler(); //This statement cause the interaction dialog flicking
@@ -176,7 +176,7 @@ public class Settings extends    AppCompatActivity
     @Override
     protected void onPause() {
         // call method
-        checkConnection();
+        //checkConnection();
 
         //manage ser interaction
         //stopHandler();
@@ -237,19 +237,19 @@ public class Settings extends    AppCompatActivity
                 /*
                 for (int i = 0; i <= sectionsPagerAdapter.getCount() - 1; i++) {
                     Fragment fragment = sectionsPagerAdapter.getItem(i);
-                    if (ChatBoxActivity.class.isInstance(fragment)) index = i;
+                    if (ChatBoxUsers.class.isInstance(fragment)) index = i;
                     if (ChatBoxMessage.class.isInstance(fragment)) index_ = i;
                 }
                 */
 
                 /*
                 for(Fragment f0 : fragments){
-                    if(ChatBoxActivity.class.isInstance(f0)) index = i;
+                    if(ChatBoxUsers.class.isInstance(f0)) index = i;
                     if(ChatBoxMessage.class.isInstance(f0)) index_ = i;
                     i++;
                 }
 
-                ChatBoxActivity f = (ChatBoxActivity)fragments.get(index);
+                ChatBoxUsers f = (ChatBoxUsers)fragments.get(index);
                 ChatBoxMessage f_ = (ChatBoxMessage)fragments.get(index_);
 
                 int x = 0;
@@ -262,6 +262,7 @@ public class Settings extends    AppCompatActivity
     }
 
     private void onConnection() {
+
         //there is a connection. Check permissions
         //set permissions to request listed in the manifest
         permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -279,12 +280,13 @@ public class Settings extends    AppCompatActivity
         if(permissionsToRequest.isEmpty()){doNext(); return;}
 
         //check the permissions. The result will be found in 'onRequestPermissionsResult'.
+        
         ActivityCompat.requestPermissions(this,
                 new String[]{
                         Manifest.permission.WRITE_EXTERNAL_STORAGE,
                         Manifest.permission.READ_EXTERNAL_STORAGE,
                         Manifest.permission.CAMERA},
-                REQUEST_PERMISSIONS);// Request permissions, the result will be found in 'onRequestpermissionsResult'
+                REQUEST_PERMISSIONS);// ActivityCompat.request permissions, the result will be found in 'onRequestpermissionsResult'
 
     }
 
@@ -353,11 +355,11 @@ public class Settings extends    AppCompatActivity
     public void onNetworkChange(boolean isConnected) {
         // display snack bar
         //showSnackBar(isConnected);
-        int i = 0;
     }
 
     //the permissions are granted in 'checkPermissions' we come here.
     private void doNext() {
+        int i = 0;
         //login
         //Intent intent = new Intent(this, NavigatorActivity.class);
         //intent.putExtra("some_extra", "some_extra"); //not used, for illustration

@@ -4,12 +4,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:id="@+id/rl_fragment_all_users"
-    android:background="@color/colorGray"
-    tools:context="com.example.aymen.androidchat.AllUsersFragment">
+    android:id="@+id/rl_activity_chat_box"
+    tools:context="com.google.amara.chattab.ChatBoxMessage">
     <LinearLayout
-        android:id="@+id/ll_nb_all_users"
-        android:weightSum="1"
+        android:id="@+id/ll_nb_users"
+        android:weightSum="3"
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -22,7 +21,7 @@
             app:srcCompat="@drawable/ic" />
         -->
         <TextView
-            android:id="@+id/tv_nb_all_users"
+            android:id="@+id/tv_nb_users"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No users till now." />
@@ -31,7 +30,7 @@
 
 
     <LinearLayout
-        android:id="@+id/ll_recycler_fragment_all_users"
+        android:id="@+id/ll_recycler_activity_chat_box"
         android:weightSum="3"
         android:orientation="vertical"
         android:layout_width="match_parent"
@@ -44,17 +43,15 @@
             android:background="@android:color/darker_gray"/>
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/all_users_recyclerView"
+            android:id="@+id/user_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="3"
             android:clipToPadding="false"
-            android:background="@color/colorYellow"
             android:scrollbars="vertical" />
 
     </LinearLayout>
 
-    <!--
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
         android:layout_width="wrap_content"
@@ -64,7 +61,6 @@
         android:layout_marginBottom="16dp"
         android:layout_alignBottom="@id/ll_recycler_activity_chat_box"
         android:layout_alignParentRight="true"
-        app:srcCompat="@drawable/add_users" />
-
-        -->
+        app:srcCompat="@android:drawable/sym_action_chat" />
 </RelativeLayout>
+    <!--  app:srcCompat="@drawable/chat_bubble32"/>  -->
