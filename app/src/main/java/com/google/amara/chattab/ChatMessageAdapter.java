@@ -1,12 +1,15 @@
 package com.google.amara.chattab;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +18,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -90,7 +97,7 @@ public class ChatMessageAdapter
         }
 
         ChatMessage msg = getItem(position);
-        Bundle diff = (Bundle) payloads.get(0);
+        Bundle diff     = (Bundle) payloads.get(0);
 
         if (!payloads.isEmpty()) {
 
@@ -108,7 +115,7 @@ public class ChatMessageAdapter
 
             // 🔹 Only reload image if URL actually changed
             if (diff.containsKey("KEY_IMAGE")) {
-                ((MeViewHolder) holder).bindImage(msg.getImageUrl());
+                ((MeViewHolder) holder).bindImage(msg.getRemoteUrl());
             }
             return; // 🚀 Skip full bind
         }
@@ -119,23 +126,20 @@ public class ChatMessageAdapter
             new DiffUtil.ItemCallback<ChatMessage>() {
 
                 @Override
-                public boolean areItemsTheSame(
-                        @NonNull ChatMessage oldItem,
-                        @NonNull ChatMessage newItem
-                ) {
-                    return safeEquals(oldItem.getId_from(), newItem.getId_from()) &&
-                            safeEquals(oldItem.getSent_at(), newItem.getSent_at());
+                public boolean areItemsTheSame(@NonNull ChatMessage a, @NonNull ChatMessage b) {
+                    return a.getLocalId().equals(b.getLocalId());
                 }
 
                 @Override
-                public boolean areContentsTheSame(
-                        @NonNull ChatMessage oldItem,
-                        @NonNull ChatMessage newItem
-                ) {
-                    return safeEquals(oldItem.getMessage(), newItem.getMessage()) &&
-                            safeEquals(oldItem.getSeen(), newItem.getSeen()) &&
-                            safeEquals(oldItem.getImageUrl(), newItem.getImageUrl());
+                public boolean areContentsTheSame(@NonNull ChatMessage a, @NonNull ChatMessage b) {
+                    return Objects.equals(a.getSent_at(), b.getSent_at()) &&
+                            Objects.equals(a.getRemoteUrl(), b.getRemoteUrl()) &&
+                            Objects.equals(a.getLocalImageUri(), b.getLocalImageUri()) &&
+                            Objects.equals(a.getMessage(), b.getMessage()) &&
+                            Objects.equals(a.getSeen(), b.getSeen()) &&
+                            a.isPending() == b.isPending();
                 }
+
 
                 private boolean safeEquals(String a, String b) {
                     if (a == null && b == null) return true;
@@ -172,10 +176,30 @@ public class ChatMessageAdapter
             }
 
             // ----- IMAGE -----
-            if (msg.getImageUrl() != null && !msg.getImageUrl().isEmpty()) {
+            String imageToLoad = null;
+
+            if (msg.getLocalImageUri() != null) {
+                imageToLoad = msg.getLocalImageUri();   // ⚡ always instant
+            } else if (msg.getRemoteUrl() != null) {
+                imageToLoad = msg.getRemoteUrl();       // 🌍 fallback (receiver side)
+            }
+
+            if (imageToLoad != null) {
+                imagePhoto.setVisibility(View.VISIBLE);
+
+                Glide.with(imagePhoto.getContext())
+                        .load(imageToLoad)
+                        .dontAnimate()
+                        .into(imagePhoto);
+            } else {
+                imagePhoto.setVisibility(View.GONE);
+            }
+
+            /*
+            if (msg.getRemoteUrl() != null && !msg.getRemoteUrl().isEmpty()) {
                 imagePhoto.setVisibility(View.VISIBLE);
                 Glide.with(imagePhoto.getContext())
-                        .load(msg.getImageUrl())
+                        .load(msg.getRemoteUrl())
                         .dontAnimate()                 // no fade = no flash
                         .placeholder(imagePhoto.getDrawable()) // 🔥 keep current image while reloading
                         .error(R.drawable.bg_message_me) // optional
@@ -185,6 +209,7 @@ public class ChatMessageAdapter
                 imagePhoto.setImageDrawable(null);     // 🔥 clears recycled image
                 imagePhoto.setVisibility(View.GONE);
             }
+            */
 
             // ----- TIME -----
             time.setVisibility(View.VISIBLE);          // 🔥 force visible every time
@@ -194,7 +219,7 @@ public class ChatMessageAdapter
             showPending(msg.isPending());
 
             // 🔥 FORCE LAYOUT RE-CALCULATION
-            itemView.requestLayout();
+            //itemView.requestLayout();
         }
 
         private static String formatTime(long timestamp) {
@@ -222,7 +247,7 @@ public class ChatMessageAdapter
     }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
     static class OtherViewHolder extends RecyclerView.ViewHolder {
-        TextView message, time;
+        TextView  message, time;
         ImageView imagePhoto;
 
         OtherViewHolder(View itemView) {
@@ -232,13 +257,43 @@ public class ChatMessageAdapter
             imagePhoto = itemView.findViewById(R.id.image_photo);
         }
 
-        void bind(ChatMessage msg) {
+    void bind(ChatMessage msg) {
+
+        // ----- TEXT -----
+        if (msg.getMessage() != null && !msg.getMessage().trim().isEmpty()) {
+            message.setVisibility(View.VISIBLE);
             message.setText(msg.getMessage());
-            //time.setText(formatTime(msg.getTimestamp()));
-            time.setText(msg.getSent_at());
+        } else {
+            message.setText("");
+            message.setVisibility(View.GONE);
         }
 
-        private static String formatTime(long timestamp) {
+        // ----- IMAGE (THIS WAS MISSING) -----
+        String imageToLoad = null;
+
+        if (msg.getLocalImageUri() != null && !msg.getLocalImageUri().isEmpty()) {
+            imageToLoad = msg.getLocalImageUri();   // ⚡ instant, no network
+        } else if (msg.getRemoteUrl() != null && !msg.getRemoteUrl().isEmpty()) {
+            imageToLoad = msg.getRemoteUrl();       // 🌍 cloud fallback
+        }
+
+        if (imageToLoad != null) {
+            imagePhoto.setVisibility(View.VISIBLE);
+
+            Glide.with(imagePhoto.getContext())
+                    .load(imageToLoad)
+                    .dontAnimate()
+                    .into(imagePhoto);
+        } else {
+            imagePhoto.setVisibility(View.GONE);
+        }
+
+        // ----- TIME -----
+        time.setText(msg.getSent_at());
+    }
+
+
+    private static String formatTime(long timestamp) {
             SimpleDateFormat sdf =
                     new SimpleDateFormat("HH:mm", Locale.getDefault());
             return sdf.format(new Date(timestamp));

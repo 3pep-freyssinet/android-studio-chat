@@ -116,7 +116,8 @@ public class ChatRepository {
                         o.optString("id_from"),
                         o.optString("id_to"),
                         o.optString("message"),
-                        o.optString("image_path"),
+                        o.optString("image_uri"),
+                        o.optString("image_url"),
                         o.optString("sent_at"),
                         o.optString("seen"),
                         o.optString("type"),
@@ -181,29 +182,41 @@ public class ChatRepository {
 
         for (ChatMessage msg : current) {
 
-            // ⭐ MATCH optimistic message using localId
             if (msg.getLocalId() != null &&
                     serverMsg.getLocalId() != null &&
                     msg.getLocalId().equals(serverMsg.getLocalId())) {
 
-                serverMsg.setPending(false); // ✅ spinner off
+                // ✅ Merge optimistic + server data
+                ChatMessage merged = new ChatMessage(
+                        msg.getLocalId(),
+                        msg.getId_from(),
+                        msg.getId_to(),
+                        msg.getMessage(),
+                        msg.getLocalImageUri(),   // keep instant local image
+                        serverMsg.getRemoteUrl(), // cloud url
+                        serverMsg.getSent_at(),   // real timestamp
+                        serverMsg.getSeen(),
+                        msg.getType(),
+                        false                     // not pending anymore
+                );
 
-                updated.add(serverMsg); // replace optimistic
+                updated.add(merged);
                 replaced = true;
-                break;
 
             } else {
+                // ✅ KEEP ALL OTHER MESSAGES
                 updated.add(msg);
             }
         }
 
-        // message from other user (no optimistic version)
+        // Message from other user (no optimistic version)
         if (!replaced) {
             updated.add(serverMsg);
         }
 
         messages.postValue(updated);
     }
+
 
 
     public void joinConversation(ChatUser user) {

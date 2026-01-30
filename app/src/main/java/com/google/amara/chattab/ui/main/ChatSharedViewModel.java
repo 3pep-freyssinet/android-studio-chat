@@ -112,6 +112,7 @@ public class ChatSharedViewModel extends ViewModel {
                 user.getId(),
                 text,           // message
                 imageUri != null ? imageUri.toString() : null,   // imageUrl (no image yet)
+                null,           // remoteUrl (no image yet)
                 "sending...",   // sent_at (temporary)
                 "pending",      // seen
                 imageUri != null ? "image" : "text",         // type
