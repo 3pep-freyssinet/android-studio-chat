@@ -175,13 +175,18 @@ public class ChatMessageAdapter
                 message.setVisibility(View.GONE);
             }
 
-            // ----- IMAGE -----
-            String imageToLoad = null;
+            String myUserId = SocketManager.getUserId();
+            boolean isMine = msg.getId_from().equals(myUserId);
 
-            if (msg.getLocalImageUri() != null) {
-                imageToLoad = msg.getLocalImageUri();   // ⚡ always instant
-            } else if (msg.getRemoteUrl() != null) {
-                imageToLoad = msg.getRemoteUrl();       // 🌍 fallback (receiver side)
+// ----- IMAGE -----
+            String imageToLoad;
+
+            if (msg.getLocalImageUri() != null && !msg.getLocalImageUri().isEmpty()) {
+                imageToLoad = msg.getLocalImageUri();
+            } else if (msg.getRemoteUrl() != null && !msg.getRemoteUrl().isEmpty()) {
+                imageToLoad = msg.getRemoteUrl();
+            } else {
+                imageToLoad = null;
             }
 
             if (imageToLoad != null) {
@@ -191,9 +196,21 @@ public class ChatMessageAdapter
                         .load(imageToLoad)
                         .dontAnimate()
                         .into(imagePhoto);
+
+                if (!isMine) {   // ✅ ONLY received messages can zoom
+                    imagePhoto.setOnClickListener(v ->
+                            ImageViewerActivity.start(v.getContext(), imageToLoad)
+                    );
+                } else {
+                    imagePhoto.setOnClickListener(null); // ❌ disable zoom for sender
+                }
+
             } else {
+                imagePhoto.setImageDrawable(null);
                 imagePhoto.setVisibility(View.GONE);
+                imagePhoto.setOnClickListener(null);
             }
+
 
             /*
             if (msg.getRemoteUrl() != null && !msg.getRemoteUrl().isEmpty()) {
@@ -268,7 +285,7 @@ public class ChatMessageAdapter
             message.setVisibility(View.GONE);
         }
 
-        // ----- IMAGE (THIS WAS MISSING) -----
+        // ----- IMAGE  -----
         String imageToLoad = null;
 
         if (msg.getLocalImageUri() != null && !msg.getLocalImageUri().isEmpty()) {
@@ -284,6 +301,13 @@ public class ChatMessageAdapter
                     .load(imageToLoad)
                     .dontAnimate()
                     .into(imagePhoto);
+
+            imagePhoto.setOnClickListener(v -> {
+                if (msg.getRemoteUrl() != null) {
+                    ImageViewerActivity.start(v.getContext(), msg.getRemoteUrl());
+                }
+            });
+
         } else {
             imagePhoto.setVisibility(View.GONE);
         }

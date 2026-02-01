@@ -35,14 +35,14 @@ public class MainApplication extends Application {
     public static final String SOCKET_URL = "https://android-chat-server.onrender.com";
 
     //Alice - redmi
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwMywidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3Njk3NjM4NzYsImV4cCI6MTc2OTg1MDI3Nn0.AETY8sC4sdmeZI7cvi2scfiZ-Zc0SXSpLdFLWKkrrro";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwNywidXNlcm5hbWUiOiJBbGljZTAxIiwiaWF0IjoxNzY5OTM4ODgxLCJleHAiOjE3NzAwMjUyODF9.pVIEeQmSC8kA-8wBFFVUof3CtuJsvzYOAEuQ3teA_As";
     private static final String TAG        = "SocketTestActivity";
 
 
     private static Socket socket;
 
     //Fanny- poco
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwNCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3Njk3NjQwNTQsImV4cCI6MTc2OTg1MDQ1NH0.ALjc8zTrodZ-suvQKQbdIXfKVh4qnVp6E22CGtJsgXo";
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwOCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3Njk5MzkxODksImV4cCI6MTc3MDAyNTU4OX0.NcsOHzZb2FSGGU6mgzwEqFFuyK9w3v0bBTDMZ6hTKnY";
 
     private BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
 

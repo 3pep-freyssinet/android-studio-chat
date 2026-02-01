@@ -53,7 +53,10 @@ dependencies {
     annotationProcessor libs.glide.compiler
 
     implementation libs.androidx.recyclerview
+    implementation libs.photoview
 
-
+    implementation libs.androidx.room.runtime
+    annotationProcessor libs.androidx.room.compiler
+    implementation libs.androidx.room.ktx
 
 }

@@ -37,7 +37,7 @@ public final class SocketManager {
             );
 
             socket.on(Socket.EVENT_CONNECT_ERROR, args ->
-                    Log.e("Socket", "🚨 CONNECT ERROR", (Throwable) args[0])
+                    Log.e("Socket", "🚨 CONNECT ERROR", new Throwable(args[0].toString()))
             );
 
             socket.on(Socket.EVENT_DISCONNECT, args ->
