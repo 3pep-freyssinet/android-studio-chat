@@ -34,15 +34,21 @@ public class MainApplication extends Application {
 
     public static final String SOCKET_URL = "https://android-chat-server.onrender.com";
 
+
     //Alice - redmi
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwNywidXNlcm5hbWUiOiJBbGljZTAxIiwiaWF0IjoxNzY5OTM4ODgxLCJleHAiOjE3NzAwMjUyODF9.pVIEeQmSC8kA-8wBFFVUof3CtuJsvzYOAEuQ3teA_As";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIxMSwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzAxMDk5OTUsImV4cCI6MTc3MDE5NjM5NX0.hIdn7cNfMxmVWEsN0MAZhS5aFQDFaSsnxlaTY8a5xss";
+    public static String myId     = "211";
+    public static String friendId = "212";
+
+
     private static final String TAG        = "SocketTestActivity";
 
+    //Fanny- poco
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIxMiwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzAxMTAxNDQsImV4cCI6MTc3MDE5NjU0NH0.G06-uwAocGxDRbXd9iy4MLNO0NyLe2RL1BF6PsjiVJo";
+    //public static String myId     = "212";
+    //public static String friendId = "211";
 
     private static Socket socket;
-
-    //Fanny- poco
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwOCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3Njk5MzkxODksImV4cCI6MTc3MDAyNTU4OX0.NcsOHzZb2FSGGU6mgzwEqFFuyK9w3v0bBTDMZ6hTKnY";
 
     private BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
 
@@ -58,8 +64,6 @@ public class MainApplication extends Application {
             }
         }
     };
-
-
 
     @Override
     public void onCreate() {

@@ -59,6 +59,7 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.lifecycle.ViewModelProvider;
 
 //import com.google.amara.authenticationretrofit.ChangePasswordActivity;
+import com.google.amara.chattab.ui.main.ChatRepository;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -488,7 +489,12 @@ public class MainActivity extends AppCompatActivity
 
         //manage user interaction
         //startHandler(); //This statement cause the interaction dialog flicking
-        Log.d("onResume", "onResume_restartActivity");
+        //Log.d("onResume", "onResume_restartActivity");
+
+
+        ChatRepository.get(getApplication()).ensureSocketConnected();
+
+
     }
 
     public void onPostResume() {

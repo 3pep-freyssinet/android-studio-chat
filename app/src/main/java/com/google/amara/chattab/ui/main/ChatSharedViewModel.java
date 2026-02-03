@@ -1,10 +1,13 @@
 package com.google.amara.chattab.ui.main;
 
+import android.app.Application;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -15,15 +18,16 @@ import com.google.amara.chattab.SocketManager;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 
 
-
-public class ChatSharedViewModel extends ViewModel {
+public class ChatSharedViewModel extends AndroidViewModel {
     //String localId = UUID.randomUUID().toString();
 
-    private final ChatRepository repository              = ChatRepository.get();
+    private ChatRepository repository;
+
     private final MutableLiveData<ChatUser> selectedUser = new MutableLiveData<>();
-    private final LiveData<List<ChatMessage>> messages   = repository.getMessages();
+    //private LiveData<List<ChatMessage>> messages         = repository.getMessages();
     private final MutableLiveData<Uri> pendingImage      = new MutableLiveData<>();
 
     private final MutableLiveData<Uri> draftImage        = new MutableLiveData<>();
@@ -34,6 +38,11 @@ public class ChatSharedViewModel extends ViewModel {
 
     public void setDraftImage(Uri uri) { draftImage.setValue(uri); }
     public void setDraftText(String text) { draftText.setValue(text); }
+
+    public ChatSharedViewModel(@NonNull Application application) {
+        super(application);
+        repository = ChatRepository.get(application);
+    }
 
     public void clearDraft() {
         draftImage.setValue(null);
@@ -119,9 +128,20 @@ public class ChatSharedViewModel extends ViewModel {
                 true            // pending (still not confirmed by server)
         );
         optimistic.setLocalId(localId);
-        optimistic.setUploadProgress(0);
+        //optimistic.setUploadProgress(0);
 
         repository.addLocalMessage(optimistic);
+
+        // 🔥 SAVE TO ROOM (offline safe)
+        Executors.newSingleThreadExecutor().execute(() ->
+                repository.messageDao.insertMessage(optimistic)
+        );
+
+
+        // 2️⃣ Try to send to server (may fail if offline)
+        if (SocketManager.getSocket() != null && SocketManager.getSocket().connected()) {
+            SocketManager.getSocket().emit("chat:send_message", optimistic.toJson());
+        }
 
         // 🟢 2. If there is an image → upload first
         if (imageUri != null) {

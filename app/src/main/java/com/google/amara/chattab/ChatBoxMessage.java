@@ -70,6 +70,7 @@ import com.bumptech.glide.Glide;
 import com.google.amara.chattab.helper.SupabaseStorageUploader;
 import com.google.amara.chattab.ui.main.ChatRepository;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
+import com.google.amara.chattab.ui.main.ChatViewModel;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -93,6 +94,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 
@@ -115,6 +117,7 @@ public class ChatBoxMessage extends Fragment {
 
     private static final int PICK_IMAGE_REQUEST = 100 ;
     private ChatSharedViewModel sharedViewModel;
+    private ChatViewModel chatViewModel;
     private RecyclerView messageRecycler;
     private ImageView sendButton, attachButton, imageUpload, previewImage, btnRemoveImage;
     private EditText messageInput;
@@ -141,6 +144,8 @@ public class ChatBoxMessage extends Fragment {
         sharedViewModel =
                 new ViewModelProvider(requireActivity())
                         .get(ChatSharedViewModel.class);
+
+        chatViewModel = new ChatViewModel(requireActivity().getApplication());
 
     }
 
@@ -227,11 +232,19 @@ public class ChatBoxMessage extends Fragment {
         );
         messageRecycler.setAdapter(adapter);
 
-
+        /*
         sharedViewModel.getMessages().observe(
                 getViewLifecycleOwner(),
                 adapter::submitList
         );
+        */
+
+        chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId)
+                .observe(getViewLifecycleOwner(), msgs -> {
+                    Log.d("ROOM_FLOW", "Messages from Room: " + msgs.size());
+                    adapter.submitList(msgs);
+                });
+
 
         sharedViewModel.getDraftImage().observe(getViewLifecycleOwner(), uri -> {
             if (uri != null) {

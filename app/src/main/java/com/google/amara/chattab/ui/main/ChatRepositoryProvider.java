@@ -12,7 +12,7 @@ public final class ChatRepositoryProvider {
     public static synchronized ChatRepository get() {
         if (repository == null) {
             Socket socket = SocketHandler.getSocket();
-            repository    = ChatRepository.get();
+            //repository    = ChatRepository.get();
         }
         return repository;
     }

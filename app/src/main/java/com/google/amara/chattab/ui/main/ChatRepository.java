@@ -1,5 +1,6 @@
 package com.google.amara.chattab.ui.main;
 
+import android.app.Application;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
@@ -10,6 +11,9 @@ import androidx.lifecycle.MutableLiveData;
 import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
 import com.google.amara.chattab.SocketManager;
+import com.google.amara.chattab.dao.AppDatabase;
+import com.google.amara.chattab.dao.ChatDatabase;
+import com.google.amara.chattab.dao.MessageDao;
 import com.google.amara.chattab.helper.SupabaseStorageUploader;
 
 import org.json.JSONArray;
@@ -18,6 +22,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import io.socket.client.Socket;
 /*
@@ -33,33 +38,96 @@ import io.socket.client.Socket;
 public class ChatRepository {
 
     private static ChatRepository instance;
-    private final Socket socket;
+    private Socket socket;
 
     private final MutableLiveData<List<ChatUser>> users       = new MutableLiveData<>();
 
     private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
 
     private boolean listening = false;
+    public MessageDao messageDao;
 
     private ChatRepository(Socket socket) {
         this.socket = socket;
         //attachConnectListener();
     }
 
-
     private ChatRepository() {
-        socket = SocketManager.getSocket();
+        this.socket = SocketManager.getSocket();
     }
 
-    public static synchronized ChatRepository get() {
+    private ChatRepository(Context context) {
+        AppDatabase db = AppDatabase.getInstance(context);
+        messageDao     = db.messageDao();
+        socket         = SocketManager.getSocket();
+
+        attachSocketListeners();
+    }
+
+    public ChatRepository(Application app) {
+        ChatDatabase db = ChatDatabase.getInstance(app);
+        messageDao      = db.messageDao();
+    }
+
+    public void ensureSocketConnected() {
+        if (socket != null && !socket.connected()) {
+            Log.d("SOCKET", "🔄 Reconnecting socket...");
+            socket.connect();
+        }
+    }
+
+    public void resendPendingMessages() {
+        if (socket == null || !socket.connected()) {
+            Log.d("SOCKET", "⚠️ Not connected, cannot resend");
+            return;
+        }
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<ChatMessage> pendingMsgs = messageDao.getPendingMessages();
+
+            for (ChatMessage msg : pendingMsgs) {
+                try {
+                    JSONObject json = msg.toJson();
+                    socket.emit("chat:send_message", json);
+                    Log.d("RESEND", "📤 Resending: " + msg.localId);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+
+    private void attachSocketListeners() {
+
+        socket.on(Socket.EVENT_CONNECT, args -> {
+            Log.d("SOCKET", "🟢 Connected");
+            resendPendingMessages();   // 🔥 SEND QUEUED MESSAGES HERE
+        });
+
+        socket.on(Socket.EVENT_DISCONNECT, args -> {
+            Log.d("SOCKET", "🔴 Disconnected");
+        });
+
+        socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
+            Log.e("SOCKET", "❌ Connect error");
+        });
+    }
+
+
+    public static synchronized ChatRepository get(Context context) {
         if (instance == null) {
-            instance = new ChatRepository();
+            instance = new ChatRepository(context);
         }
         return instance;
     }
 
     public LiveData<List<ChatUser>> getUsers() {
         return users;
+    }
+
+    public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
+        return messageDao.getConversation(myId, friendId);
     }
 
     /**
@@ -140,6 +208,10 @@ public class ChatRepository {
 
             replaceOrAddMessage(serverMsg);
 
+            // 🔥 SAVE TO ROOM
+            Executors.newSingleThreadExecutor().execute(() ->
+                    messageDao.insertMessage(serverMsg)
+            );
 
             /*
             ChatMessage msg = new ChatMessage(
@@ -166,7 +238,27 @@ public class ChatRepository {
             messages.postValue(updated);
             */
         });
+
+        socket.on(Socket.EVENT_CONNECT, args -> {
+            Log.d("ChatRepo", "🟢 Socket connected — syncing pending messages");
+            resendPendingMessages();
+        });
+
     }
+
+    private void resendPendingMessages_() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+
+            List<ChatMessage> pendingList = messageDao.getPendingMessages();
+
+            for (ChatMessage msg : pendingList) {
+                Log.d("ChatRepo", "📤 Resending pending: " + msg.localId);
+
+                socket.emit("chat:send_message", msg.toJson());
+            }
+        });
+    }
+
 
     public LiveData<List<ChatMessage>> getMessages() {
         return messages;
@@ -215,6 +307,7 @@ public class ChatRepository {
         }
 
         messages.postValue(updated);
+
     }
 
 
