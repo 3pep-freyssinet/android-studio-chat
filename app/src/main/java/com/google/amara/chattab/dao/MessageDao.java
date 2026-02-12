@@ -51,4 +51,79 @@ public interface MessageDao {
     @Query("SELECT * FROM messages WHERE pending = 1 ORDER BY uid ASC")
     List<ChatMessage> getPendingMessages();
 
+    @Query("UPDATE messages SET remoteUrl = :url WHERE localId = :localId")
+    void updateRemoteUrl(String localId, String url);
+
+    @Query("UPDATE messages SET sent_at = 'uploading...' WHERE localId = :localId")
+    void markUploading(String localId);
+
+    @Query("SELECT * FROM messages WHERE type = 'image' AND remoteUrl IS NULL AND pending = 1 ORDER BY uid ASC")
+    List<ChatMessage> getPendingImageUploads();
+
+    @Query("UPDATE messages SET status = :status WHERE localId = :localId")
+    void updateStatus(String localId, String status);
+
+    @Query("""
+        SELECT COUNT(*) FROM messages
+        WHERE id_from = :withUserId
+        AND id_to = :myUserId
+        AND status != 'seen'
+     """)
+    int countUnreadMessages(String withUserId, String myUserId);
+
+    @Query("""
+        UPDATE messages
+        SET status = 'seen'
+        WHERE id_from = :withUserId
+        AND id_to = :myUserId
+        AND status != 'seen'
+""")
+    void markConversationSeen(String withUserId, String myUserId);
+
+
+    @Query("""
+UPDATE messages SET
+    remoteUrl = :remoteUrl,
+    sent_at   = :sentAt,
+    status    = :status,
+    pending   = 0
+WHERE localId = :localId
+""")
+    void confirmMessage(
+            String localId,
+            String remoteUrl,
+            String sentAt,
+            String status
+    );
+
+
+    @Query("""
+        UPDATE messages
+        SET
+            remoteUrl = :remoteUrl,
+            pending   = 0,
+            sent_at   = :sentAt,
+            status    = :status
+        WHERE localId = :localId
+    """)
+
+        void confirmMessage_(
+                String localId,
+                String remoteUrl,
+                String sentAt,
+                String status
+        );
+
+    @Query("UPDATE messages SET status = :status WHERE serverId = :serverId")
+    void updateStatusByServerId(int serverId, String status);
+
+    @Query("""
+        SELECT id_from, COUNT(*) as unreadCount
+        FROM messages
+        WHERE id_to = :me
+        AND status != 'seen'
+        GROUP BY id_from
+""")
+    List<UnreadCount> getUnreadCounts(String me);
+
 }

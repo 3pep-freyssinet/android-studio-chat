@@ -36,17 +36,17 @@ public class MainApplication extends Application {
 
 
     //Alice - redmi
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIxMSwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzAxMDk5OTUsImV4cCI6MTc3MDE5NjM5NX0.hIdn7cNfMxmVWEsN0MAZhS5aFQDFaSsnxlaTY8a5xss";
-    public static String myId     = "211";
-    public static String friendId = "212";
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIyOSwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzA4ODcwNTEsImV4cCI6MTc3MDk3MzQ1MX0.vQ-a1epW4ihp9OIb5T5W1mFWGUDKXVCqU6iJaGS19xg";
+    //public static String myId     = "229";
+    //public static String friendId = "230";
 
 
     private static final String TAG        = "SocketTestActivity";
 
     //Fanny- poco
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIxMiwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzAxMTAxNDQsImV4cCI6MTc3MDE5NjU0NH0.G06-uwAocGxDRbXd9iy4MLNO0NyLe2RL1BF6PsjiVJo";
-    //public static String myId     = "212";
-    //public static String friendId = "211";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIzMCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzA4ODcxMzYsImV4cCI6MTc3MDk3MzUzNn0.5KfPbqYk3UvgJAaTd3rIaWEQVYIToeLzk_GI1EBhGU8";
+    public static String myId     = "230";
+    public static String friendId = "229";
 
     private static Socket socket;
 

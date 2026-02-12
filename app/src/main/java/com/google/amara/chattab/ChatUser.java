@@ -12,7 +12,7 @@ import java.io.Serializable;
 public class ChatUser implements Serializable,
                                  Parcelable {
 
-    //Status constantes
+    //Status constants
     public static final int userGone        = 0;    //red   bit  = 000
     public static final int userConnect     = 1;    //green bit  = 001
     public static final int userStandby     = 2;    //orange bit = 010

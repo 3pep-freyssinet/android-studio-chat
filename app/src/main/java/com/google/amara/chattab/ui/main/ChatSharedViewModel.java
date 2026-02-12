@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
 public class ChatSharedViewModel extends AndroidViewModel {
     //String localId = UUID.randomUUID().toString();
 
-    private ChatRepository repository;
+    public ChatRepository repository;
 
     private final MutableLiveData<ChatUser> selectedUser = new MutableLiveData<>();
     //private LiveData<List<ChatMessage>> messages         = repository.getMessages();
@@ -116,17 +116,19 @@ public class ChatSharedViewModel extends AndroidViewModel {
 
         // 🟡 1. Optimistic bubble (shows instantly)
         ChatMessage optimistic = new ChatMessage(
+                null,
                 localId,
                 myId,
                 user.getId(),
                 text,           // message
                 imageUri != null ? imageUri.toString() : null,   // imageUrl (no image yet)
                 null,           // remoteUrl (no image yet)
-                "sending...",   // sent_at (temporary)
-                "pending",      // seen
+                "now",          //"sending...",   // sent_at (temporary)
+                ChatMessage.STATUS_SENDING, //"pending",      // seen
                 imageUri != null ? "image" : "text",         // type
                 true            // pending (still not confirmed by server)
         );
+
         optimistic.setLocalId(localId);
         //optimistic.setUploadProgress(0);
 
@@ -139,15 +141,17 @@ public class ChatSharedViewModel extends AndroidViewModel {
 
 
         // 2️⃣ Try to send to server (may fail if offline)
-        if (SocketManager.getSocket() != null && SocketManager.getSocket().connected()) {
-            SocketManager.getSocket().emit("chat:send_message", optimistic.toJson());
-        }
+        //if (SocketManager.getSocket() != null && SocketManager.getSocket().connected()) {
+        //    SocketManager.getSocket().emit("chat:send_message", optimistic.toJson());
+        //}
 
         // 🟢 2. If there is an image → upload first
         if (imageUri != null) {
             repository.uploadImageAndSend(context, text, imageUri, user.getId(), localId);
-        } else {
-            // 🔵 3. Text only
+            return;
+        }
+        // 🔵 TEXT MESSAGE FLOW
+        if (SocketManager.getSocket() != null && SocketManager.getSocket().connected()) {
             repository.sendTextMessage(text, user.getId(), localId);
         }
     }
@@ -177,6 +181,10 @@ public class ChatSharedViewModel extends AndroidViewModel {
     }
      */
 
+    public boolean hasUnreadMessages(String withUserId) {
+        String myId = SocketManager.getUserId();
+        return repository.messageDao.countUnreadMessages(withUserId, myId) > 0;
+    }
 }
 
 

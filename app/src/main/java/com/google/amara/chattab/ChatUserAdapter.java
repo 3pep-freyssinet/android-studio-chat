@@ -83,6 +83,16 @@ public class ChatUserAdapter
                 "Last connection: " + user.getLastConnectedAt()
         );
 
+        /*
+        if (user.getUnreadCount() > 0) {
+            badge.setVisibility(View.VISIBLE);
+            badge.setText(String.valueOf(user.getUnreadCount()));
+        } else {
+            badge.setVisibility(View.GONE);
+        }
+        holder.notSeenMessages.setText("999");
+        */
+
         // Click on row
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
@@ -104,12 +114,12 @@ public class ChatUserAdapter
 
         MyViewHolder(@NonNull View itemView) {
             super(itemView);
-            nickname = itemView.findViewById(R.id.nickname);
-            timeConnection = itemView.findViewById(R.id.time_connection);
-            lastTimeConnection = itemView.findViewById(R.id.last_time_connection);
-            imageProfile = itemView.findViewById(R.id.image_profile);
-            statusView = itemView.findViewById(R.id.status_view);
-            notSeenMessages = itemView.findViewById(R.id.tv_not_seen_messages);
+            nickname            = itemView.findViewById(R.id.nickname);
+            timeConnection      = itemView.findViewById(R.id.time_connection);
+            lastTimeConnection  = itemView.findViewById(R.id.last_time_connection);
+            imageProfile        = itemView.findViewById(R.id.image_profile);
+            statusView          = itemView.findViewById(R.id.status_view);
+            notSeenMessages     = itemView.findViewById(R.id.tv_not_seen_messages);
         }
     }
 }

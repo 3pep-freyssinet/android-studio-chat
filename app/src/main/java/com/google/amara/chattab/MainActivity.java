@@ -494,7 +494,22 @@ public class MainActivity extends AppCompatActivity
 
         ChatRepository.get(getApplication()).ensureSocketConnected();
 
+        /*
+        String withUserId = MainApplication.friendId; //selectedUserId; // the person I'm chatting with
 
+        Log.d("MainActivity", "📥 withUserId : " + withUserId);
+
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("withUserId", withUserId);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        Socket socket = SocketManager.getSocket();
+        Log.d("MainActivity", "📥 socket : " + socket);
+        socket.emit("chat:mark_seen", obj);
+        */
     }
 
     public void onPostResume() {

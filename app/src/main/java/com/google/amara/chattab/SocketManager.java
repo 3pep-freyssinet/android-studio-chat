@@ -22,10 +22,13 @@ public final class SocketManager {
         if (initialized) return;
 
         try {
-            IO.Options options = new IO.Options();
-            options.transports = new String[]{"websocket"};
+            IO.Options options   = new IO.Options();
+            options.transports   = new String[]{"websocket"};
             options.reconnection = true;
-            options.forceNew = true;
+            options.forceNew     = true;
+            options.reconnectionAttempts = Integer.MAX_VALUE;
+            options.reconnectionDelay    = 2000;
+            options.reconnectionDelayMax = 10000;
 
             options.auth = new HashMap<>();
             options.auth.put("token", token);

@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -22,6 +23,7 @@ import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
+import com.bumptech.glide.signature.ObjectKey;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -101,6 +103,16 @@ public class ChatMessageAdapter
 
         if (!payloads.isEmpty()) {
 
+            if (payloads.contains("STATUS_CHANGED")) {
+                msg = getItem(position);
+
+                if (holder instanceof MeViewHolder) {
+                    ((MeViewHolder) holder).updateStatusOnly(msg);
+                }
+
+                return; // 🔥 STOP full rebind
+            }
+
             // 🔹 Only update time
             if (diff.containsKey("KEY_TIME")) {
                 assert holder instanceof MeViewHolder;
@@ -117,6 +129,7 @@ public class ChatMessageAdapter
             if (diff.containsKey("KEY_IMAGE")) {
                 ((MeViewHolder) holder).bindImage(msg.getRemoteUrl());
             }
+
             return; // 🚀 Skip full bind
         }
         super.onBindViewHolder(holder, position, payloads);
@@ -130,16 +143,34 @@ public class ChatMessageAdapter
                     return a.getLocalId().equals(b.getLocalId());
                 }
 
+                /*
+                @Override
+                public boolean areContentsTheSame(@NonNull ChatMessage oldItem,
+                                                  @NonNull ChatMessage newItem) {
+                    return oldItem.equals(newItem);
+                }
+                */
+
                 @Override
                 public boolean areContentsTheSame(@NonNull ChatMessage a, @NonNull ChatMessage b) {
                     return Objects.equals(a.getSent_at(), b.getSent_at()) &&
                             Objects.equals(a.getRemoteUrl(), b.getRemoteUrl()) &&
                             Objects.equals(a.getLocalImageUri(), b.getLocalImageUri()) &&
                             Objects.equals(a.getMessage(), b.getMessage()) &&
-                            Objects.equals(a.getSeen(), b.getSeen()) &&
+                            Objects.equals(a.getStatus(), b.getStatus()) &&
                             a.isPending() == b.isPending();
                 }
 
+                @Override
+                public Object getChangePayload(@NonNull ChatMessage oldItem,
+                                               @NonNull ChatMessage newItem) {
+
+                    if (!Objects.equals(oldItem.getStatus(), newItem.getStatus())) {
+                        return "STATUS_CHANGED";
+                    }
+
+                    return null;
+                }
 
                 private boolean safeEquals(String a, String b) {
                     if (a == null && b == null) return true;
@@ -152,8 +183,8 @@ public class ChatMessageAdapter
     /////////////////////////////////////////////////////////
     static class MeViewHolder extends RecyclerView.ViewHolder {
         TextView    message, time;
-        ImageView   imagePhoto;
-        ProgressBar progressBar;
+        ImageView   imagePhoto, statusIcon;
+        //ProgressBar progressBar;
 
 
         MeViewHolder(View itemView) {
@@ -161,10 +192,53 @@ public class ChatMessageAdapter
             message     = itemView.findViewById(R.id.tv_message);
             time        = itemView.findViewById(R.id.tv_time);
             imagePhoto  = itemView.findViewById(R.id.image_photo);
-            progressBar = itemView.findViewById(R.id.image_upload_progress);
+            statusIcon  = itemView.findViewById(R.id.iv_status);
+
+            //progressBar = itemView.findViewById(R.id.image_upload_progress);
         }
 
         void bind(ChatMessage msg) {
+            /*
+            switch (msg.getStatus()) {
+                case ChatMessage.STATUS_SENDING:
+                    time.setText("⏳");
+                    break;
+
+                case ChatMessage.STATUS_SENT:
+                    time.setText("✓");
+                    break;
+
+                case ChatMessage.STATUS_DELIVERED:
+                    time.setText("✓✓");
+                    break;
+
+                case ChatMessage.STATUS_SEEN:
+                    time.setText("✓✓");
+                    time.setTextColor(Color.BLUE);
+                    break;
+            }
+            */
+            switch (msg.getStatus()) {
+                case "sending": //"pending":
+                    statusIcon.setImageResource(R.drawable.hourglass_icon);
+                    break;
+
+                case "sent":
+                    statusIcon.setImageResource(R.drawable.check_mark_icon_black);
+                    break;
+
+                case "delivered":
+                    statusIcon.setImageResource(R.drawable.check_mark_icon_double_black);
+                    break;
+
+                case "seen":
+                    statusIcon.setImageResource(R.drawable.check_mark_icon_blue);
+                    break;
+
+                case "failed":
+                    statusIcon.setImageResource(R.drawable.error_icon);
+                    break;
+            }
 
             // ----- MESSAGE TEXT -----
             if (msg.getMessage() != null && !msg.getMessage().trim().isEmpty()) {
@@ -176,9 +250,10 @@ public class ChatMessageAdapter
             }
 
             String myUserId = SocketManager.getUserId();
-            boolean isMine = msg.getId_from().equals(myUserId);
+            boolean isMine  = msg.getId_from().equals(myUserId);
 
-// ----- IMAGE -----
+           // ----- IMAGE -----
+            /*
             String imageToLoad;
 
             if (msg.getLocalImageUri() != null && !msg.getLocalImageUri().isEmpty()) {
@@ -188,12 +263,17 @@ public class ChatMessageAdapter
             } else {
                 imageToLoad = null;
             }
+            */
+
+            String imageToLoad = msg.getDisplayImageSource(myUserId);
 
             if (imageToLoad != null) {
+                Uri uri = Uri.parse(imageToLoad);
                 imagePhoto.setVisibility(View.VISIBLE);
 
                 Glide.with(imagePhoto.getContext())
-                        .load(imageToLoad)
+                        .load(uri)
+                        //.signature(new ObjectKey(msg.getLocalImageUri()))
                         .dontAnimate()
                         .into(imagePhoto);
 
@@ -206,7 +286,7 @@ public class ChatMessageAdapter
                 }
 
             } else {
-                imagePhoto.setImageDrawable(null);
+                //imagePhoto.setImageDrawable(null);
                 imagePhoto.setVisibility(View.GONE);
                 imagePhoto.setOnClickListener(null);
             }
@@ -229,8 +309,10 @@ public class ChatMessageAdapter
             */
 
             // ----- TIME -----
-            time.setVisibility(View.VISIBLE);          // 🔥 force visible every time
-            time.setText(msg.getSent_at());
+            time.setVisibility(View.VISIBLE);
+            // format time
+            String time_ = formatTime(Long.parseLong(msg.getSent_at()));
+            time.setText(time_);
 
             // ----- PENDING INDICATOR -----
             showPending(msg.isPending());
@@ -261,21 +343,68 @@ public class ChatMessageAdapter
 
         public void showPending(boolean pending) {
         }
+
+        void updateStatusOnly(ChatMessage msg) {
+
+            switch (msg.getStatus()) {
+                case "sending": //"pending":
+                    statusIcon.setImageResource(R.drawable.hourglass_icon);
+                    break;
+
+                case "sent":
+                    statusIcon.setImageResource(R.drawable.check_mark_icon_black);
+                    break;
+
+                case "delivered":
+                    statusIcon.setImageResource(R.drawable.check_mark_icon_double_black);
+                    break;
+
+                case "seen":
+                    statusIcon.setImageResource(R.drawable.check_mark_icon_blue);
+                    break;
+
+                case "failed":
+                    statusIcon.setImageResource(R.drawable.error_icon);
+                    break;
+            }
+        }
+
     }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
     static class OtherViewHolder extends RecyclerView.ViewHolder {
         TextView  message, time;
-        ImageView imagePhoto;
+        ImageView imagePhoto, statusIcon;
 
         OtherViewHolder(View itemView) {
             super(itemView);
             message    = itemView.findViewById(R.id.tv_message);
             time       = itemView.findViewById(R.id.tv_time);
             imagePhoto = itemView.findViewById(R.id.image_photo);
+            statusIcon = itemView.findViewById(R.id.iv_status);
         }
 
     void bind(ChatMessage msg) {
+        switch (msg.getStatus()) {
+            case "sending": //"pending":
+                statusIcon.setImageResource(R.drawable.hourglass_icon);
+                break;
 
+            case "sent":
+                statusIcon.setImageResource(R.drawable.check_mark_icon_black);
+                break;
+
+            case "delivered":
+                statusIcon.setImageResource(R.drawable.check_mark_icon_double_black);
+                break;
+
+            case "seen":
+                statusIcon.setImageResource(R.drawable.check_mark_icon_blue);
+                break;
+
+            case "failed":
+                statusIcon.setImageResource(R.drawable.error_icon);
+                break;
+        }
         // ----- TEXT -----
         if (msg.getMessage() != null && !msg.getMessage().trim().isEmpty()) {
             message.setVisibility(View.VISIBLE);
@@ -313,7 +442,10 @@ public class ChatMessageAdapter
         }
 
         // ----- TIME -----
-        time.setText(msg.getSent_at());
+        time.setVisibility(View.VISIBLE);
+        // format time
+        String time_ = formatTime(Long.parseLong(msg.getSent_at()));
+        time.setText(time_);
     }
 
 
@@ -321,7 +453,32 @@ public class ChatMessageAdapter
             SimpleDateFormat sdf =
                     new SimpleDateFormat("HH:mm", Locale.getDefault());
             return sdf.format(new Date(timestamp));
-        }
-
     }
+
+    void updateStatusOnly(ChatMessage msg) {
+
+        switch (msg.getStatus()) {
+            case "sending": //"pending":
+                statusIcon.setImageResource(R.drawable.hourglass_icon);
+                break;
+
+            case "sent":
+                statusIcon.setImageResource(R.drawable.check_mark_icon_black);
+                break;
+
+            case "delivered":
+                statusIcon.setImageResource(R.drawable.check_mark_icon_double_black);
+                break;
+
+            case "seen":
+                statusIcon.setImageResource(R.drawable.check_mark_icon_blue);
+                break;
+
+            case "failed":
+                statusIcon.setImageResource(R.drawable.error_icon);
+                break;
+        }
+    }
+
+  }
 }

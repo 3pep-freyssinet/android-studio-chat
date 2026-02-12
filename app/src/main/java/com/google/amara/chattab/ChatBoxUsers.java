@@ -51,6 +51,7 @@ public class ChatBoxUsers extends Fragment {
     private ChatViewModel viewModel;
     private ChatUserAdapter adapter;
     private ChatSharedViewModel vm;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -77,6 +78,7 @@ public class ChatBoxUsers extends Fragment {
             Log.d("UI", "User clicked: " + user.getNickname());
             sharedViewModel.selectUser(user);
         });
+
         RecyclerView userRecyclerView = view.findViewById(R.id.user_list);
         userRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         userRecyclerView.setAdapter(adapter);

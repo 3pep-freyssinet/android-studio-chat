@@ -97,6 +97,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 
 import androidx.lifecycle.ViewModelProvider;
 
@@ -210,6 +211,30 @@ public class ChatBoxMessage extends Fragment {
     ) {
         super.onViewCreated(view, savedInstanceState);
 
+        Log.d("ChatBoxMessage", "onViewCreated ");
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String withUserId = MainApplication.friendId;
+            String myUserId   = MainApplication.myId;
+
+            boolean hasUnread = sharedViewModel.hasUnreadMessages(withUserId);
+
+            if (hasUnread) {
+
+                // 1️⃣ Update local DB immediately
+                sharedViewModel.repository.messageDao.markConversationSeen(withUserId, myUserId);
+
+                // 2️⃣ Notify backend
+                JSONObject obj = new JSONObject();
+                try {
+                    obj.put("withUserId", withUserId);
+                    SocketManager.getSocket().emit("chat:mark_seen", obj);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         /*
         // ✅ SAFE: view lifecycle exists
         sharedViewModel.getSelectedUser().observe(
@@ -239,12 +264,21 @@ public class ChatBoxMessage extends Fragment {
         );
         */
 
+        /*
         chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId)
                 .observe(getViewLifecycleOwner(), msgs -> {
                     Log.d("ROOM_FLOW", "Messages from Room: " + msgs.size());
                     adapter.submitList(msgs);
                 });
+        */
 
+        chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId).observe(getViewLifecycleOwner(), list -> {
+            adapter.submitList(list);
+
+            messageRecycler.post(() ->
+                    messageRecycler.scrollToPosition(list.size() - 1)
+            );
+        });
 
         sharedViewModel.getDraftImage().observe(getViewLifecycleOwner(), uri -> {
             if (uri != null) {

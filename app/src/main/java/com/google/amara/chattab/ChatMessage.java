@@ -15,7 +15,10 @@ import org.json.JSONObject;
 
 @Entity(
         tableName = "messages",
-        indices = {@Index(value = {"localId"}, unique = true)} // ⭐ IMPORTANT
+        indices = {
+                @Index(value = {"localId"},  unique = true),
+                @Index(value = {"serverId"}, unique = true)
+        }
 )
 public class ChatMessage {
 
@@ -23,25 +26,36 @@ public class ChatMessage {
     public int uid;   // local DB id
 
     @NonNull
-    public String localId;
-
-    public String id_from;
-    public String id_to;
-    public String message;
-    public String localImageUri;
-    public String remoteUrl;
-    public String sent_at;
-    public String seen;
-    public String type;
+    public String  localId;
+    public Integer serverId;
+    public String  id_from;
+    public String  id_to;
+    public String  message;
+    public String  localImageUri;
+    public String  remoteUrl;
+    public String  sent_at;
+    public String  status;
+    public String  type;
     public boolean pending;
+
+    @Ignore
+    private String displayImageSource;
+
+    public static final String STATUS_SENDING   = "sending";
+    public static final String STATUS_SENT      = "sent";
+    public static final String STATUS_DELIVERED = "delivered";
+    public static final String STATUS_SEEN      = "seen";
+
+    //public String status;
 
     // Needed empty constructor
     public ChatMessage() {}
 
     @Ignore
-    public ChatMessage(@NonNull String localId, String id_from, String id_to,
+    public ChatMessage(Integer serverId, @NonNull String localId, String id_from, String id_to,
                        String message, String localImageUri, String remoteUrl,
-                       String sent_at, String seen, String type, boolean pending) {
+                       String sent_at, String status, String type, boolean pending) {
+        this.serverId       = serverId;
         this.localId        = localId;
         this.id_from        = id_from;
         this.id_to          = id_to;
@@ -49,7 +63,7 @@ public class ChatMessage {
         this.localImageUri  = localImageUri;
         this.remoteUrl      = remoteUrl;
         this.sent_at        = sent_at;
-        this.seen           = seen;
+        this.status         = status;
         this.type           = type;
         this.pending        = pending;
     }
@@ -62,10 +76,12 @@ public class ChatMessage {
     public String getLocalImageUri() { return localImageUri; }
     public String getRemoteUrl() { return remoteUrl; }
     public String getSent_at() { return sent_at; }
-    public String getSeen() { return seen; }
+    //public String getSeen() { return seen; }
     public String getType(){return type;}
     public boolean isPending() { return pending; }
     //public int    getUploadProgress() { return uploadProgress; }
+    public String getStatus() { return status; }
+    public Integer getServerId() {return serverId;}
 
 
     public void setLocalId(@NonNull String localId) { this.localId = localId; }
@@ -74,14 +90,17 @@ public class ChatMessage {
     public void setLocalImageUri(String localImageUri) {this.localImageUri = localImageUri; }
     public void setRemoteUrl(String remoteUrl) {this.remoteUrl = remoteUrl; }
     public void setSent_at(String sent_at) {this.sent_at = sent_at; }
-    public void setSeen(String seen) {this.seen = seen; }
+    //public void setSeen(String seen) {this.seen = seen; }
     public void setType(String type) {this.type = type; }
     public void setMessage(String message) {this.message = message; }
     public void setPending(boolean pending) {this.pending = pending; }
     //public void setUploadProgress(int uploadProgress) { this.uploadProgress = uploadProgress; }
+    public void setStatus(String status) { this.status = status; }
+    public void setServerId(int id) {this.serverId = id;}
 
     public static ChatMessage fromJson(JSONObject o) {
         return new ChatMessage(
+                o.optInt("id"),
                 o.optString("localId", null),
                 o.optString("id_from"),
                 o.optString("id_to"),
@@ -106,6 +125,7 @@ public class ChatMessage {
         JSONObject obj = new JSONObject();
 
         try {
+            obj.put("serverId", serverId);
             obj.put("localId", localId);      // ⭐ used to match optimistic message
             obj.put("fromUserId", id_from);
             obj.put("toUserId", id_to);
@@ -119,7 +139,7 @@ public class ChatMessage {
 
             // Optional fields (backend may overwrite)
             if (sent_at != null) obj.put("sent_at", sent_at);
-            if (seen != null) obj.put("seen", seen);
+            if (status != null) obj.put("seen", status);
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -127,6 +147,26 @@ public class ChatMessage {
 
         return obj;
     }
+
+    public String getDisplayImageSource(String myUserId) {
+        if (displayImageSource != null) return displayImageSource;
+
+        boolean isMine = myUserId != null && myUserId.equals(id_from);
+
+        if (isMine && localImageUri != null && !localImageUri.isEmpty()) {
+            // 🔥 Sender always sees local image
+            displayImageSource = localImageUri;
+        } else if (remoteUrl != null && !remoteUrl.isEmpty()) {
+            // Receiver or restored message
+            displayImageSource = remoteUrl;
+        } else if (localImageUri != null && !localImageUri.isEmpty()) {
+            // Fallback (edge cases)
+            displayImageSource = localImageUri;
+        }
+
+        return displayImageSource;
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

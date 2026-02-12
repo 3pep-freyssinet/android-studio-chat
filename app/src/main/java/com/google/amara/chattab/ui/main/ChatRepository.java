@@ -12,7 +12,6 @@ import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
 import com.google.amara.chattab.SocketManager;
 import com.google.amara.chattab.dao.AppDatabase;
-import com.google.amara.chattab.dao.ChatDatabase;
 import com.google.amara.chattab.dao.MessageDao;
 import com.google.amara.chattab.helper.SupabaseStorageUploader;
 
@@ -22,6 +21,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 
 import io.socket.client.Socket;
@@ -46,6 +46,7 @@ public class ChatRepository {
 
     private boolean listening = false;
     public MessageDao messageDao;
+    private Context appContext;
 
     private ChatRepository(Socket socket) {
         this.socket = socket;
@@ -57,6 +58,7 @@ public class ChatRepository {
     }
 
     private ChatRepository(Context context) {
+        appContext = context;
         AppDatabase db = AppDatabase.getInstance(context);
         messageDao     = db.messageDao();
         socket         = SocketManager.getSocket();
@@ -65,7 +67,7 @@ public class ChatRepository {
     }
 
     public ChatRepository(Application app) {
-        ChatDatabase db = ChatDatabase.getInstance(app);
+        AppDatabase db  = AppDatabase.getInstance(app);
         messageDao      = db.messageDao();
     }
 
@@ -88,8 +90,20 @@ public class ChatRepository {
             for (ChatMessage msg : pendingMsgs) {
                 try {
                     JSONObject json = msg.toJson();
-                    socket.emit("chat:send_message", json);
-                    Log.d("RESEND", "📤 Resending: " + msg.localId);
+                    Log.d("SOCKET", "Emit socket id: " + socket.id());
+
+                    if ("image".equals(msg.getType())) continue; // handled by upload worker
+
+                    if (msg.getRemoteUrl() == null || msg.getRemoteUrl().isEmpty()) {
+                        // 📝 TEXT MESSAGE
+                        socket.emit("chat:send_message", json);
+                        Log.d("RESEND", "📤 Resending TEXT: " + msg.localId);
+                    } else {
+                        // 🖼 IMAGE MESSAGE
+                        socket.emit("chat:send_image", json);
+                        Log.d("RESEND", "📤 Resending IMAGE: " + msg.localId);
+                    }
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -103,6 +117,7 @@ public class ChatRepository {
         socket.on(Socket.EVENT_CONNECT, args -> {
             Log.d("SOCKET", "🟢 Connected");
             resendPendingMessages();   // 🔥 SEND QUEUED MESSAGES HERE
+            processPendingImageUploads(); 
         });
 
         socket.on(Socket.EVENT_DISCONNECT, args -> {
@@ -113,6 +128,55 @@ public class ChatRepository {
             Log.e("SOCKET", "❌ Connect error");
         });
     }
+
+    private void processPendingImageUploads() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+
+            List<ChatMessage> pendingImages = messageDao.getPendingImageUploads();
+
+            if (pendingImages.isEmpty()) {
+                Log.d("UPLOAD", "No pending image uploads");
+                return;
+            }
+
+            Log.d("UPLOAD", "Found " + pendingImages.size() + " pending image(s)");
+
+            for (ChatMessage msg : pendingImages) {
+
+                if (msg.getLocalImageUri() == null) continue;
+
+                Uri localUri = Uri.parse(msg.getLocalImageUri());
+
+                Log.d("UPLOAD", "Uploading offline image: " + msg.getLocalId());
+
+                SupabaseStorageUploader.uploadImage(appContext, localUri, new SupabaseStorageUploader.UploadCallback() {
+
+                    @Override
+                    public void onSuccess(String publicUrl) {
+
+                        Executors.newSingleThreadExecutor().execute(() -> {
+                            messageDao.updateRemoteUrl(msg.getLocalId(), publicUrl);
+                        });
+
+                        Log.d("UPLOAD", "Upload success: " + msg.getLocalId());
+
+                        sendImageMessage(
+                                msg.getMessage(),
+                                publicUrl,
+                                msg.getId_to(),
+                                msg.getLocalId()
+                        );
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        Log.e("UPLOAD", "Upload failed again: " + msg.getLocalId(), e);
+                    }
+                });
+            }
+        });
+    }
+
 
 
     public static synchronized ChatRepository get(Context context) {
@@ -180,6 +244,7 @@ public class ChatRepository {
                 JSONObject o = array.optJSONObject(i);
 
                 ChatMessage msg = new ChatMessage(
+                        o.optInt("serverId"),
                         o.optString("localId"),
                         o.optString("id_from"),
                         o.optString("id_to"),
@@ -203,15 +268,15 @@ public class ChatRepository {
         socket.on("chat:new_message", args -> {
             Log.d("ChatRepo", "📥 chat:new_message received");
 
-            JSONObject data = (JSONObject) args[0];
+            JSONObject data       = (JSONObject) args[0];
             ChatMessage serverMsg = ChatMessage.fromJson(data);
+            try {
+                serverMsg.setServerId(data.getInt("id"));
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
 
             replaceOrAddMessage(serverMsg);
-
-            // 🔥 SAVE TO ROOM
-            Executors.newSingleThreadExecutor().execute(() ->
-                    messageDao.insertMessage(serverMsg)
-            );
 
             /*
             ChatMessage msg = new ChatMessage(
@@ -239,12 +304,123 @@ public class ChatRepository {
             */
         });
 
+        socket.on("chat:delivered", args -> {
+            JSONObject obj = (JSONObject) args[0];
+            String localId = obj.optString("localId");
+
+            updateMessageStatus(localId, ChatMessage.STATUS_DELIVERED);
+        });
+
+        socket.on("chat:seen", args -> {
+            JSONObject obj  = (JSONObject) args[0];
+            String friendId = obj.optString("fromUserId");
+
+            //markConversationSeen(fromUserId);
+
+            String myId = SocketManager.getUserId();
+
+            // 1️⃣ Update locally (only messages FROM friend TO me)
+            List<ChatMessage> current = messages.getValue();
+            if (current == null) return;
+
+            List<ChatMessage> updated = new ArrayList<>();
+
+            for (ChatMessage msg : current) {
+                if (msg.getId_from().equals(myId) &&
+                        msg.getId_to().equals(friendId) &&
+                        !ChatMessage.STATUS_SEEN.equals(msg.getStatus())) {
+
+                    msg.setStatus(ChatMessage.STATUS_SEEN);
+
+                    Executors.newSingleThreadExecutor().execute(() ->
+                            messageDao.updateStatus(msg.getLocalId(), ChatMessage.STATUS_SEEN)
+                    );
+                }
+
+                updated.add(msg);
+            }
+        });
+
+        socket.on("chat:message_status_update", args -> {
+
+            JSONObject data = (JSONObject) args[0];
+
+            int serverId  = data.optInt("serverId");
+            String status = data.optString("status");
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+                messageDao.updateStatusByServerId(serverId, status);
+            });
+        });
+
+
         socket.on(Socket.EVENT_CONNECT, args -> {
             Log.d("ChatRepo", "🟢 Socket connected — syncing pending messages");
             resendPendingMessages();
         });
 
     }
+
+    public void markConversationSeen(String friendId) {
+
+        String myId = SocketManager.getUserId();
+
+        // 1️⃣ Update locally (only messages FROM friend TO me)
+        List<ChatMessage> current = messages.getValue();
+        if (current == null) return;
+
+        List<ChatMessage> updated = new ArrayList<>();
+
+        for (ChatMessage msg : current) {
+            if (msg.getId_from().equals(friendId) &&
+                    msg.getId_to().equals(myId) &&
+                    !ChatMessage.STATUS_SEEN.equals(msg.getStatus())) {
+
+                msg.setStatus(ChatMessage.STATUS_SEEN);
+
+                Executors.newSingleThreadExecutor().execute(() ->
+                        messageDao.updateStatus(msg.getLocalId(), ChatMessage.STATUS_SEEN)
+                );
+            }
+
+            updated.add(msg);
+        }
+
+        messages.postValue(updated);
+
+        // 2️⃣ Notify backend
+        if (socket != null && socket.connected()) {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("withUserId", friendId);
+                socket.emit("chat:mark_seen", obj);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    private void updateMessageStatus(String localId, String newStatus) {
+        List<ChatMessage> current = messages.getValue();
+        if (current == null) return;
+
+        List<ChatMessage> updated = new ArrayList<>();
+
+        for (ChatMessage msg : current) {
+            if (localId.equals(msg.getLocalId())) {
+                msg.setStatus(newStatus);
+            }
+            updated.add(msg);
+        }
+
+        messages.postValue(updated);
+
+        Executors.newSingleThreadExecutor().execute(() ->
+                messageDao.updateStatus(localId, newStatus)
+        );
+    }
+
 
     private void resendPendingMessages_() {
         Executors.newSingleThreadExecutor().execute(() -> {
@@ -280,6 +456,7 @@ public class ChatRepository {
 
                 // ✅ Merge optimistic + server data
                 ChatMessage merged = new ChatMessage(
+                        serverMsg.getServerId(), //msg.getServerId(),
                         msg.getLocalId(),
                         msg.getId_from(),
                         msg.getId_to(),
@@ -287,13 +464,17 @@ public class ChatRepository {
                         msg.getLocalImageUri(),   // keep instant local image
                         serverMsg.getRemoteUrl(), // cloud url
                         serverMsg.getSent_at(),   // real timestamp
-                        serverMsg.getSeen(),
+                        ChatMessage.STATUS_SENT,  //serverMsg.getSeen(),
                         msg.getType(),
                         false                     // not pending anymore
                 );
 
                 updated.add(merged);
                 replaced = true;
+
+                // 🔥 SAVE TO ROOM
+                Executors.newSingleThreadExecutor().execute(() ->
+                                messageDao.insertMessage(merged));
 
             } else {
                 // ✅ KEEP ALL OTHER MESSAGES
@@ -303,11 +484,18 @@ public class ChatRepository {
 
         // Message from other user (no optimistic version)
         if (!replaced) {
+
+            if (serverMsg.getLocalId() == null) {
+                serverMsg.setLocalId(UUID.randomUUID().toString());
+            }
+
             updated.add(serverMsg);
+
+            Executors.newSingleThreadExecutor().execute(() ->
+                    messageDao.insertMessage(serverMsg)
+            );
         }
-
         messages.postValue(updated);
-
     }
 
 
@@ -406,7 +594,13 @@ public class ChatRepository {
         SupabaseStorageUploader.uploadImage(context, imageUri, new SupabaseStorageUploader.UploadCallback() {
             @Override
             public void onSuccess(String publicUrl) {
+                //sendImageMessage(text, publicUrl, toUserId, localId);
+
+                messageDao.updateRemoteUrl(localId, publicUrl);
+
+                // Now emit to server
                 sendImageMessage(text, publicUrl, toUserId, localId);
+
             }
 
             @Override
