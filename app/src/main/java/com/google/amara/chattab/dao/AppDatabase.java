@@ -37,8 +37,14 @@ public abstract class AppDatabase extends RoomDatabase {
                             .build();
                     */
 
+                    /*
                     INSTANCE = Room.databaseBuilder(context, AppDatabase.class, "chat_db")
                             .addMigrations(MIGRATION_2_3)
+                            .build();
+                    */
+
+                    INSTANCE = Room.databaseBuilder(context, AppDatabase.class, "chat_db")
+                            .fallbackToDestructiveMigration()
                             .build();
                 }
             }

@@ -26,6 +26,11 @@ import com.bumptech.glide.request.target.Target;
 import com.bumptech.glide.signature.ObjectKey;
 
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -103,7 +108,7 @@ public class ChatMessageAdapter
 
         if (!payloads.isEmpty()) {
 
-            if (payloads.contains("STATUS_CHANGED")) {
+            if (diff.containsKey("status")) {
                 msg = getItem(position);
 
                 if (holder instanceof MeViewHolder) {
@@ -165,12 +170,19 @@ public class ChatMessageAdapter
                 public Object getChangePayload(@NonNull ChatMessage oldItem,
                                                @NonNull ChatMessage newItem) {
 
+                    Bundle diff = new Bundle();
+
                     if (!Objects.equals(oldItem.getStatus(), newItem.getStatus())) {
-                        return "STATUS_CHANGED";
+                        diff.putString("status", newItem.getStatus());
                     }
 
-                    return null;
+                    if (!Objects.equals(oldItem.getSent_at(), newItem.getSent_at())) {
+                        diff.putString("time", newItem.getSent_at());
+                    }
+
+                    return diff.size() == 0 ? null : diff;
                 }
+
 
                 private boolean safeEquals(String a, String b) {
                     if (a == null && b == null) return true;
@@ -311,7 +323,7 @@ public class ChatMessageAdapter
             // ----- TIME -----
             time.setVisibility(View.VISIBLE);
             // format time
-            String time_ = formatTime(Long.parseLong(msg.getSent_at()));
+            String time_ = formatMessageTime(msg.getSent_at()); //msg.getSent_at(); //);
             time.setText(time_);
 
             // ----- PENDING INDICATOR -----
@@ -321,10 +333,44 @@ public class ChatMessageAdapter
             //itemView.requestLayout();
         }
 
-        private static String formatTime(long timestamp) {
-            SimpleDateFormat sdf =
-                    new SimpleDateFormat("HH:mm", Locale.getDefault());
-            return sdf.format(new Date(timestamp));
+        public static String formatMessageTime(String isoTime) {
+
+            if (isoTime == null || isoTime.isEmpty()) return "";
+
+            // Parse ISO UTC time
+            Instant instant = Instant.parse(isoTime);
+
+            // Convert to user's local timezone
+            ZonedDateTime messageTime =
+                    instant.atZone(ZoneId.systemDefault());
+
+            ZonedDateTime now =
+                    ZonedDateTime.now();
+
+            LocalDate messageDate = messageTime.toLocalDate();
+            LocalDate today = now.toLocalDate();
+
+            // 1️⃣ Today → show HH:mm
+            if (messageDate.equals(today)) {
+                return messageTime.format(
+                        DateTimeFormatter.ofPattern("HH:mm"));
+            }
+
+            // 2️⃣ Yesterday
+            if (messageDate.equals(today.minusDays(1))) {
+                return "Yesterday " +
+                        messageTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+            }
+
+            // 3️⃣ Same week → show day name
+            if (messageDate.isAfter(today.minusDays(7))) {
+                return messageTime.format(
+                        DateTimeFormatter.ofPattern("EEEE HH:mm", Locale.getDefault()));
+            }
+
+            // 4️⃣ Older → show date
+            return messageTime.format(
+                    DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
 
         void bindImage(String url) {
@@ -380,10 +426,11 @@ public class ChatMessageAdapter
             message    = itemView.findViewById(R.id.tv_message);
             time       = itemView.findViewById(R.id.tv_time);
             imagePhoto = itemView.findViewById(R.id.image_photo);
-            statusIcon = itemView.findViewById(R.id.iv_status);
+            //statusIcon = itemView.findViewById(R.id.iv_status);
         }
 
     void bind(ChatMessage msg) {
+        /*
         switch (msg.getStatus()) {
             case "sending": //"pending":
                 statusIcon.setImageResource(R.drawable.hourglass_icon);
@@ -405,6 +452,8 @@ public class ChatMessageAdapter
                 statusIcon.setImageResource(R.drawable.error_icon);
                 break;
         }
+        */
+
         // ----- TEXT -----
         if (msg.getMessage() != null && !msg.getMessage().trim().isEmpty()) {
             message.setVisibility(View.VISIBLE);
@@ -444,16 +493,51 @@ public class ChatMessageAdapter
         // ----- TIME -----
         time.setVisibility(View.VISIBLE);
         // format time
-        String time_ = formatTime(Long.parseLong(msg.getSent_at()));
+        String time_ = formatMessageTime(msg.getSent_at()); //msg.getSent_at(); //
         time.setText(time_);
     }
 
 
-    private static String formatTime(long timestamp) {
-            SimpleDateFormat sdf =
-                    new SimpleDateFormat("HH:mm", Locale.getDefault());
-            return sdf.format(new Date(timestamp));
+    public static String formatMessageTime(String isoTime) {
+
+        if (isoTime == null || isoTime.isEmpty()) return "";
+
+        // Parse ISO UTC time
+        Instant instant = Instant.parse(isoTime);
+
+        // Convert to user's local timezone
+        ZonedDateTime messageTime =
+                instant.atZone(ZoneId.systemDefault());
+
+        ZonedDateTime now =
+                ZonedDateTime.now();
+
+        LocalDate messageDate = messageTime.toLocalDate();
+        LocalDate today = now.toLocalDate();
+
+        // 1️⃣ Today → show HH:mm
+        if (messageDate.equals(today)) {
+            return messageTime.format(
+                    DateTimeFormatter.ofPattern("HH:mm"));
+        }
+
+        // 2️⃣ Yesterday
+        if (messageDate.equals(today.minusDays(1))) {
+            return "Yesterday " +
+                    messageTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+        }
+
+        // 3️⃣ Same week → show day name
+        if (messageDate.isAfter(today.minusDays(7))) {
+            return messageTime.format(
+                    DateTimeFormatter.ofPattern("EEEE HH:mm", Locale.getDefault()));
+        }
+
+        // 4️⃣ Older → show date
+        return messageTime.format(
+                DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
+
 
     void updateStatusOnly(ChatMessage msg) {
 

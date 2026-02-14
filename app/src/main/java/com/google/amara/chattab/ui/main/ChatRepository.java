@@ -337,27 +337,65 @@ public class ChatRepository {
                     );
                 }
 
-                updated.add(msg);
+                ChatMessage updatedMsg = new ChatMessage(
+                        msg.getServerId(),
+                        msg.getLocalId(),
+                        msg.getId_from(),
+                        msg.getId_to(),
+                        msg.getMessage(),
+                        msg.getLocalImageUri(),
+                        msg.getRemoteUrl(),
+                        msg.getSent_at(),
+                        ChatMessage.STATUS_SEEN,
+                        msg.getType(),
+                        false
+                );
+                updated.add(updatedMsg);
+                //updated.add(msg);
             }
+            messages.postValue(updated);
         });
 
         socket.on("chat:message_status_update", args -> {
 
             JSONObject data = (JSONObject) args[0];
 
-            int serverId  = data.optInt("serverId");
+            //int serverId  = data.optInt("serverId");
+            int serverId = data.has("serverId")
+                    ? data.optInt("serverId")
+                    : data.optInt("id");
+
             String status = data.optString("status");
 
             Executors.newSingleThreadExecutor().execute(() -> {
                 messageDao.updateStatusByServerId(serverId, status);
             });
+
+            // 🔥 ALSO UPDATE MEMORY
+            List<ChatMessage> current = messages.getValue();
+            if (current == null) return;
+
+            List<ChatMessage> updated = new ArrayList<>();
+
+            for (ChatMessage msg : current) {
+                if (msg.getServerId().equals(serverId)) {
+                    msg.setStatus(status);
+                    msg.setPending(false);
+                }
+                updated.add(msg);
+            }
+
+            messages.postValue(updated);
         });
 
 
+
+        /*
         socket.on(Socket.EVENT_CONNECT, args -> {
             Log.d("ChatRepo", "🟢 Socket connected — syncing pending messages");
             resendPendingMessages();
         });
+        */
 
     }
 
