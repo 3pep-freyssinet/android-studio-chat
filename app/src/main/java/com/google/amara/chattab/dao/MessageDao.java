@@ -82,13 +82,13 @@ public interface MessageDao {
 
 
     @Query("""
-UPDATE messages SET
-    remoteUrl = :remoteUrl,
-    sent_at   = :sentAt,
-    status    = :status,
-    pending   = 0
-WHERE localId = :localId
-""")
+        UPDATE messages SET
+            remoteUrl = :remoteUrl,
+            sent_at   = :sentAt,
+            status    = :status,
+            pending   = 0
+        WHERE localId = :localId
+     """)
     void confirmMessage(
             String localId,
             String remoteUrl,
@@ -117,6 +117,7 @@ WHERE localId = :localId
     @Query("UPDATE messages SET status = :status WHERE serverId = :serverId")
     void updateStatusByServerId(int serverId, String status);
 
+    /*
     @Query("""
         SELECT id_from, COUNT(*) as unreadCount
         FROM messages
@@ -125,5 +126,14 @@ WHERE localId = :localId
         GROUP BY id_from
 """)
     List<UnreadCount> getUnreadCounts(String me);
+    */
+
+    @Query("""
+    SELECT COUNT(*) FROM messages
+    WHERE id_from = :friendId
+    AND status != 'seen'
+""")
+    LiveData<Integer> getUnreadCount(String friendId);
+
 
 }

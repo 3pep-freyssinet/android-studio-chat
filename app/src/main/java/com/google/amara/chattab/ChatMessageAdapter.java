@@ -337,6 +337,8 @@ public class ChatMessageAdapter
 
             if (isoTime == null || isoTime.isEmpty()) return "";
 
+            if(isoTime.equals("now")) return "999";
+
             // Parse ISO UTC time
             Instant instant = Instant.parse(isoTime);
 

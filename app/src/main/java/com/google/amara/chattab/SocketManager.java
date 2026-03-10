@@ -35,9 +35,12 @@ public final class SocketManager {
 
             socket = IO.socket(url, options);
 
-            socket.on(Socket.EVENT_CONNECT, args ->
-                    Log.d("Socket", "✅ CONNECTED: " + socket.id())
-            );
+            socket.on(Socket.EVENT_CONNECT, args -> {
+                Log.d("Socket", "✅ CONNECTED: " + socket.id());
+
+                socket.emit("chat:get_users_with_unread");
+
+            });
 
             socket.on(Socket.EVENT_CONNECT_ERROR, args ->
                     Log.e("Socket", "🚨 CONNECT ERROR", new Throwable(args[0].toString()))

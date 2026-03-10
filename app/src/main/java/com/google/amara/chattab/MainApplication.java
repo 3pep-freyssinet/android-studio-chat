@@ -36,17 +36,18 @@ public class MainApplication extends Application {
 
 
     //Alice - redmi
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIzMywidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzEwNTk4MTIsImV4cCI6MTc3MTE0NjIxMn0.lKeSi1VX2G-G_T-vzPVZtH4Xk0dhTB4zu-k5bYetbPE";
-    //public static String myId     = "233";
-    //public static String friendId = "234";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMxMywidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzMxMzc1MDQsImV4cCI6MTc3MzIyMzkwNH0.00TuCzs4ysZq3__OANhRXtudUy1ExGk51JZi2JkHIL0";
+    public static String myId     = "313";
+    public static String friendId = "314";
 
 
     private static final String TAG        = "SocketTestActivity";
+    public static String currentChatUserId; //set when a user tapes an avatar to open conversation
 
     //Fanny- poco
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIzNCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzEwNTk4ODgsImV4cCI6MTc3MTE0NjI4OH0.l0rsiaii9bhtgucsc8A4y6OEuVSCsXhCexH-ODyAQIU";
-    public static String myId     = "234";
-    public static String friendId = "233";
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMxNCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzMxMzc4MjYsImV4cCI6MTc3MzIyNDIyNn0.5jqyy3YikvbrkFs3ljb8t1nk-wPll3GoeljSAA3TiJU";
+    //public static String myId     = "314";
+    //public static String friendId = "313";
 
     private static Socket socket;
 

@@ -227,7 +227,7 @@ public class ChatBoxMessage extends Fragment {
                 // 2️⃣ Notify backend
                 JSONObject obj = new JSONObject();
                 try {
-                    obj.put("withUserId", withUserId);
+                    obj.put("fromUserId", withUserId);
                     SocketManager.getSocket().emit("chat:mark_seen", obj);
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -379,7 +379,12 @@ public class ChatBoxMessage extends Fragment {
                 //sendMessageWithImage(imagePath);
             }
         });
+    }
 
+    @Override
+    public void onPause() {
+        super.onPause();
+        MainApplication.currentChatUserId = null;
     }
 }
 

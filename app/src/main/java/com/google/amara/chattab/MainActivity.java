@@ -267,6 +267,10 @@ public class MainActivity extends AppCompatActivity
         });
 
 
+        //get the users list with unread messages
+        //SocketManager.getSocket().emit("chat:get_users_with_unread");
+
+
         ////////////////////////////////////////////////////////////////////////////////////////////
         //The 'Setting' is first launched and followed by 'NavigatorActivity' witch transmit 'socket' to all
         //activities they need it.

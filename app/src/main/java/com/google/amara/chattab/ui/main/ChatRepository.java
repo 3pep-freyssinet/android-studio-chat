@@ -6,10 +6,12 @@ import android.net.Uri;
 import android.util.Log;
 
 import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
+import com.google.amara.chattab.MainApplication;
 import com.google.amara.chattab.SocketManager;
 import com.google.amara.chattab.dao.AppDatabase;
 import com.google.amara.chattab.dao.MessageDao;
@@ -40,6 +42,8 @@ public class ChatRepository {
     private static ChatRepository instance;
     private Socket socket;
 
+    MediatorLiveData<List<ChatUser>> usersWithUnread          = new MediatorLiveData<>();
+    
     private final MutableLiveData<List<ChatUser>> users       = new MutableLiveData<>();
 
     private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
@@ -57,6 +61,7 @@ public class ChatRepository {
         this.socket = SocketManager.getSocket();
     }
 
+    //constructor
     private ChatRepository(Context context) {
         appContext = context;
         AppDatabase db = AppDatabase.getInstance(context);
@@ -66,6 +71,7 @@ public class ChatRepository {
         attachSocketListeners();
     }
 
+    //constructor
     public ChatRepository(Application app) {
         AppDatabase db  = AppDatabase.getInstance(app);
         messageDao      = db.messageDao();
@@ -266,42 +272,32 @@ public class ChatRepository {
 
         //Receive new message from backend.
         socket.on("chat:new_message", args -> {
-            Log.d("ChatRepo", "📥 chat:new_message received");
 
-            JSONObject data       = (JSONObject) args[0];
+            JSONObject data = (JSONObject) args[0];
             ChatMessage serverMsg = ChatMessage.fromJson(data);
-            try {
-                serverMsg.setServerId(data.getInt("id"));
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
 
             replaceOrAddMessage(serverMsg);
 
-            /*
-            ChatMessage msg = new ChatMessage(
-                    o.optString("localId"),
-                    o.optString("id_from"),
-                    o.optString("id_to"),
-                    o.optString("message"),
-                    o.optString("image_path"),
-                    o.optString("sent_at"),
-                    o.optString("seen"),
-                    o.optString("type"),
-                    o.optBoolean("pending")
-            );
+            if (serverMsg.id_to.equals(MainApplication.myId)
+                    && serverMsg.id_from.equals(MainApplication.currentChatUserId)) {
 
-            List<ChatMessage> current = messages.getValue();
-            if (current == null) current = new ArrayList<>();
+                JSONObject payload = new JSONObject();
 
-            //current.add(msg);
+                try {
+                    payload.put("fromUserId", serverMsg.id_from);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
 
-            // 🔥 CREATE NEW LIST
-            List<ChatMessage> updated = new ArrayList<>(current);
-            updated.add(msg);
+                Log.d("ChatRepo","myId="+MainApplication.myId);
+                Log.d("ChatRepo","msg_to="+serverMsg.id_to);
+                Log.d("ChatRepo","msg_from="+serverMsg.id_from);
+                Log.d("ChatRepo","currentChatUserId="+MainApplication.currentChatUserId);
 
-            messages.postValue(updated);
-            */
+                socket.emit("chat:mark_seen", payload);
+
+                Log.d("ChatRepo","payload="+payload);
+            }
         });
 
         socket.on("chat:delivered", args -> {
@@ -378,7 +374,7 @@ public class ChatRepository {
             List<ChatMessage> updated = new ArrayList<>();
 
             for (ChatMessage msg : current) {
-                if (msg.getServerId().equals(serverId)) {
+                if (String.valueOf(msg.getServerId()).equals(String.valueOf(serverId))) {
                     msg.setStatus(status);
                     msg.setPending(false);
                 }
@@ -388,6 +384,40 @@ public class ChatRepository {
             messages.postValue(updated);
         });
 
+        socket.on("chat:users_with_unread", args -> {
+
+            JSONArray array = (JSONArray) args[0];
+
+            List<ChatUser> users_ = new ArrayList<>();
+
+            for (int i = 0; i < array.length(); i++) {
+
+                JSONObject obj   = null;
+                ChatUser user    = new ChatUser();
+                try {
+                    obj = array.getJSONObject(i);
+
+                    user.chatId      = String.valueOf(obj.getInt("id"));
+                    user.nickname    = obj.getString("nickname");
+                    user.status      = 1; //Integer.parseInt(obj.getString("status"));
+                    user.connectedAt = obj.getString("connected_at");
+                    user.lastConnectedAt       = obj.getString("last_seen_at");
+                    user.notSeenMessagesNumber = obj.getInt("unread_count");
+
+                } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                 }
+
+                users_.add(user);
+            }
+
+            users.postValue(users_);
+
+            Log.d("ChatRepo", "📥 chat:users_with_unread : users_ : " + users_.get(0).getNickname());
+
+            //Log.d("ChatRepo", "📥 chat:users_with_unread : users : " + users.getValue().get(0).getNickname());
+            Log.d("ChatRepo", "📥 chat:users_with_unread : users_ : " + users_.get(0).getNotSeenMessagesNumber());
+        });
 
 
         /*
@@ -398,6 +428,29 @@ public class ChatRepository {
         */
 
     }
+
+    public void incrementUnreadCounter(String fromUserId) {
+
+        List<ChatUser> currentUsers = users.getValue();
+        if (currentUsers == null) return;
+
+        List<ChatUser> updatedList = new ArrayList<>();
+
+        for (ChatUser user : currentUsers) {
+
+            if (fromUserId.equals(user.chatId)) {
+                user.notSeenMessagesNumber += 1;
+            }
+
+            updatedList.add(user);
+        }
+
+        users.postValue(updatedList);  // 🔥 new list instance
+        Log.d("ChatRepo", "🟢 nickname = " +users.getValue().get(0).getNickname());
+        Log.d("ChatRepo", "🟢 not seen messages = " +users.getValue().get(0).getNotSeenMessagesNumber());
+    }
+
+
 
     public void markConversationSeen(String friendId) {
 
@@ -648,6 +701,27 @@ public class ChatRepository {
         });
     }
 
+    //no longer used
+    /*
+    public void resetUnreadCounter(String friendId) {
+
+        List<ChatUser> currentUsers = users.getValue();
+        if (currentUsers == null) return;
+
+        List<ChatUser> updatedList = new ArrayList<>();
+
+        for (ChatUser user : currentUsers) {
+
+            if (friendId.equals(user.chatId)) {
+                user.notSeenMessagesNumber = 0;
+            }
+
+            updatedList.add(user);
+        }
+
+        users.setValue(updatedList);   // 🔥 NEW LIST INSTANCE
+    }
+    */
 }
 
 

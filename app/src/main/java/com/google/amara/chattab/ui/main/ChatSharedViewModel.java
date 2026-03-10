@@ -14,7 +14,11 @@ import androidx.lifecycle.ViewModel;
 
 import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
+import com.google.amara.chattab.MainApplication;
 import com.google.amara.chattab.SocketManager;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,8 +29,10 @@ public class ChatSharedViewModel extends AndroidViewModel {
     //String localId = UUID.randomUUID().toString();
 
     public ChatRepository repository;
+    private LiveData<List<ChatUser>> users;
 
     private final MutableLiveData<ChatUser> selectedUser = new MutableLiveData<>();
+
     //private LiveData<List<ChatMessage>> messages         = repository.getMessages();
     private final MutableLiveData<Uri> pendingImage      = new MutableLiveData<>();
 
@@ -69,6 +75,18 @@ public class ChatSharedViewModel extends AndroidViewModel {
     public void selectUser(ChatUser user) {
         selectedUser.setValue(user);
         repository.joinConversation(user);
+
+        // current conversation
+        MainApplication.currentChatUserId = user.getId();
+
+        // mark conversation as seen
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("fromUserId", user.getId());
+        } catch (JSONException e) {}
+
+        SocketManager.getSocket().emit("chat:mark_seen", payload);
+
     }
 
     public LiveData<List<ChatUser>> getUsers() {
@@ -184,6 +202,11 @@ public class ChatSharedViewModel extends AndroidViewModel {
     public boolean hasUnreadMessages(String withUserId) {
         String myId = SocketManager.getUserId();
         return repository.messageDao.countUnreadMessages(withUserId, myId) > 0;
+    }
+
+
+    public void resetUnreadCounter(String friendId) {
+        //repository.resetUnreadCounter(friendId);
     }
 }
 

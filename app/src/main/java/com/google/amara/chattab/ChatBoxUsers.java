@@ -93,6 +93,8 @@ public class ChatBoxUsers extends Fragment {
             if (getActivity() instanceof TabChatActivity) {
                 ((TabChatActivity) getActivity()).openChatTab();
             }
+
+            //sharedViewModel.resetUnreadCounter(user.chatId);
         });
 
         vm.getUsers().observe(
