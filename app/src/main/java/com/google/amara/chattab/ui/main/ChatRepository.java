@@ -1,8 +1,12 @@
 package com.google.amara.chattab.ui.main;
 
+import static com.google.amara.chattab.MainApplication.friendId;
+
 import android.app.Application;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.lifecycle.LiveData;
@@ -22,7 +26,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -46,11 +52,42 @@ public class ChatRepository {
     
     private final MutableLiveData<List<ChatUser>> users       = new MutableLiveData<>();
 
-    private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
+    //private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
+
+    private final MediatorLiveData<List<ChatMessage>> messages = new MediatorLiveData<>();
+
+    private final MutableLiveData<Boolean> typing              = new MutableLiveData<>(false);
+
+    public LiveData<Boolean> getTyping() {
+        return typing;
+    }
+
+    private LiveData<List<ChatMessage>> currentSource;
+
+    private List<ChatMessage> dbMessages = new ArrayList<>();
+    private boolean isTyping = false;
+    //private Handler typingHandler = new Handler(Looper.getMainLooper());
+
+    private final Handler typingHandler = new Handler(Looper.getMainLooper());
+
+    private final Runnable typingTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            Log.d("TYPING", "typing timeout → stop");
+            typing.postValue(false);
+        }
+    };
+
+    private Runnable stopTypingRunnable;
+    //private Handler typingHandler = new Handler(Looper.getMainLooper());
+    private Runnable typingTimeout;
+    private final Set<String> onlineUsersSnapshot = new HashSet<>();
 
     private boolean listening = false;
     public MessageDao messageDao;
     private Context appContext;
+    private final String VIEW_TYPE_TYPING = "3";
+
 
     private ChatRepository(Socket socket) {
         this.socket = socket;
@@ -75,6 +112,79 @@ public class ChatRepository {
     public ChatRepository(Application app) {
         AppDatabase db  = AppDatabase.getInstance(app);
         messageDao      = db.messageDao();
+    }
+
+    //👉 That method is now obsolete ❌
+    private void addTypingMessage() {
+
+        Log.d("TYPING", "addTypingMessage called");
+
+        List<ChatMessage> current = messages.getValue();
+        if (current == null) current = new ArrayList<>();
+
+        for (ChatMessage m : current) {
+            if (m.isTyping()) return;
+        }
+
+        List<ChatMessage> updated = new ArrayList<>(current);
+
+        ChatMessage typingMsg = new ChatMessage();
+        typingMsg.setTyping(true);
+
+        updated.add(typingMsg);
+
+        Log.d("TYPING", "posting typing message, size=" + updated.size());
+
+        messages.postValue(updated);
+    }
+
+    private void removeTypingMessage() {
+
+        List<ChatMessage> current = messages.getValue();
+        if (current == null) return;
+
+        List<ChatMessage> updated = new ArrayList<>(current);
+
+        for (int i = 0; i < updated.size(); i++) {
+            if (updated.get(i).isTyping()) {
+                updated.remove(i);
+                break;
+            }
+        }
+
+        messages.postValue(updated);
+    }
+
+    public void notifyTyping(String toUserId) {
+
+        if (!isTyping) {
+            isTyping = true;
+
+            socket.emit("typing:start", createTypingPayload(toUserId));
+        }
+
+        if (stopTypingRunnable != null) {
+            typingHandler.removeCallbacks(stopTypingRunnable);
+        }
+
+        stopTypingRunnable = () -> {
+            isTyping = false;
+
+            socket.emit("typing:stop", createTypingPayload(toUserId));
+        };
+
+        typingHandler.postDelayed(stopTypingRunnable, 1500);
+        typingHandler.postDelayed(() -> removeTypingMessage(), 3000);
+    }
+
+    public JSONObject createTypingPayload(String toUserId) {
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("to", toUserId);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return obj;
     }
 
     public void ensureSocketConnected() {
@@ -196,8 +306,68 @@ public class ChatRepository {
         return users;
     }
 
+    /*
     public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
         return messageDao.getConversation(myId, friendId);
+    }
+    */
+
+
+    public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
+        return messageDao.getConversation(myId, friendId);
+    }
+
+
+    /*
+    public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
+
+        if (currentSource != null) {
+            messages.removeSource(currentSource);
+        }
+
+        currentSource = messageDao.getConversation(myId, friendId);
+
+        messages.addSource(currentSource, list -> {
+            Log.d("TYPING", "Room emitted size=" + (list == null ? 0 : list.size()));
+
+            dbMessages = list != null ? list : new ArrayList<>();
+            mergeAndPost();
+        });
+
+        return messages;
+    }
+    */
+
+    private void mergeAndPost() {
+
+        List<ChatMessage> merged = new ArrayList<>();
+
+        if (dbMessages.isEmpty()) {
+            Log.d("MERGE", "Skip empty emission");
+            return; // ⭐ CRITICAL FIX
+        }
+
+        if (dbMessages != null) {
+            merged.addAll(dbMessages);
+        }
+
+        /*
+        if (isTyping) {
+            ChatMessage typingMsg = new ChatMessage();
+            typingMsg.setTyping(true);
+            typingMsg.setType(VIEW_TYPE_TYPING);
+            typingMsg.setLocalId("typing_" + friendId);
+            merged.add(typingMsg);
+        }
+        */
+
+        Log.d("TYPING", "merged size=" + merged.size());
+
+        //messages.postValue(merged);
+        //messages.setValue(merged);
+        new Handler(Looper.getMainLooper()).post(() -> {
+            messages.setValue(merged);
+        });
     }
 
     /**
@@ -238,7 +408,7 @@ public class ChatRepository {
 
                 users.postValue(filtered);
 
-                //users.postValue(list);
+                applyPresence();
             });
 
         //Load conversations from backend.
@@ -272,6 +442,8 @@ public class ChatRepository {
 
         //Receive new message from backend.
         socket.on("chat:new_message", args -> {
+            isTyping = false;
+            mergeAndPost();
 
             JSONObject data = (JSONObject) args[0];
             ChatMessage serverMsg = ChatMessage.fromJson(data);
@@ -399,7 +571,7 @@ public class ChatRepository {
 
                     user.chatId      = String.valueOf(obj.getInt("id"));
                     user.nickname    = obj.getString("nickname");
-                    user.status      = 1; //Integer.parseInt(obj.getString("status"));
+                    user.status      = obj.optInt("status", 0);
                     user.connectedAt = obj.getString("connected_at");
                     user.lastConnectedAt       = obj.getString("last_seen_at");
                     user.notSeenMessagesNumber = obj.getInt("unread_count");
@@ -420,6 +592,123 @@ public class ChatRepository {
         });
 
 
+        socket.on("user_status", args -> {
+            int status;
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String userId   = data.getString("userId");
+                String status_  = data.getString("status");
+
+                if(status_.equals("offline")){
+                    status = 0;
+                }else{
+                    if(status_.equals("online")){
+                        status = 1;
+                    }else{
+                        status = 2;//standby
+                    }
+                }
+
+                Log.d("ChatRepo", "user_status: " + userId + " -> " + status);
+
+                List<ChatUser> current = users.getValue();
+                if (current == null) return;
+                for (ChatUser u : current) {
+                    if (u.getChatId().equals(userId)) {
+                        u.setStatus(status);
+                        break;
+                    }
+                }
+                users.postValue(new ArrayList<>(current));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+
+        socket.on("online_users", args -> {
+
+            JSONArray arr = (JSONArray) args[0];
+
+            onlineUsersSnapshot.clear();
+
+            for (int i = 0; i < arr.length(); i++) {
+                onlineUsersSnapshot.add(String.valueOf(arr.optInt(i)));
+            }
+
+            Log.d("SOCKET", "snapshot stored: " + onlineUsersSnapshot);
+
+            applyPresence();
+
+        });
+
+        //socket.on("typing:start", args -> {
+        //    runOnUiThread(() -> adapter.showTyping());
+        //});
+
+
+        socket.on("typing:start", args -> {
+            Log.d("TYPING", "typing:start received");
+
+            //if (Boolean.TRUE.equals(typing.getValue())) return; // ignore duplicate
+
+            typing.postValue(true);
+
+            // ✅ cancel ONLY this runnable
+            typingHandler.removeCallbacks(typingTimeoutRunnable);
+
+            // ✅ schedule again
+            typingHandler.postDelayed(typingTimeoutRunnable, 5000);
+        });
+
+
+        socket.on("typing:stop", args -> {
+            Log.d("TYPING", "typing:stop received");
+
+            typingHandler.removeCallbacks(typingTimeoutRunnable);
+            typing.postValue(false);
+        });
+
+
+        socket.on("chat:conversation", args -> {
+
+            JSONArray array = (JSONArray) args[0];
+            ArrayList<ChatMessage> arrayList = new ArrayList<>();
+
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject obj = array.optJSONObject(i);
+                arrayList.add(ChatMessage.fromJson(obj));
+            }
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+                messageDao.insertAll(arrayList); // 🔥 THIS FEEDS ROOM
+            });
+        });
+
+        /*
+        socket.on("typing:stop", args -> {
+            runOnUiThread(() -> adapter.hideTyping());
+        });
+        */
+
+
+        /*
+        socket.on("typing:stop", args -> {
+
+            List<ChatMessage> current = messages.getValue();
+            if (current == null) return;
+
+            for (int i = 0; i < current.size(); i++) {
+                if (current.get(i).isTyping()) {
+                    current.remove(i);
+                    break;
+                }
+            }
+
+            messages.postValue(current);
+        });
+        */
+
         /*
         socket.on(Socket.EVENT_CONNECT, args -> {
             Log.d("ChatRepo", "🟢 Socket connected — syncing pending messages");
@@ -427,6 +716,27 @@ public class ChatRepository {
         });
         */
 
+    }
+
+    private void applyPresence() {
+
+        List<ChatUser> current = users.getValue();
+        if (current == null || current.isEmpty()) return;
+
+        for (ChatUser u : current) {
+
+            if (onlineUsersSnapshot.contains(u.getChatId())) {
+                u.setStatus(1);
+            } else {
+                u.setStatus(0);
+            }
+
+        }
+
+        users.postValue(new ArrayList<>(current));
+    }
+
+    private void updateUserBadge(String userId, String status) {
     }
 
     public void incrementUnreadCounter(String fromUserId) {
@@ -699,6 +1009,17 @@ public class ChatRepository {
                 Log.e("ChatRepo", "Image upload failed", e);
             }
         });
+    }
+
+    public void fetchConversationFromServer(String myId, String friendId) {
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put("withUserId", friendId);
+
+            socket.emit("chat:get_conversation", obj);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     //no longer used

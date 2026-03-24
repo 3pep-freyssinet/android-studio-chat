@@ -82,7 +82,7 @@ public class ChatMessage {
     //public int    getUploadProgress() { return uploadProgress; }
     public String getStatus() { return status; }
     public Integer getServerId() {return serverId;}
-
+    private boolean isTyping = false;
 
     public void setLocalId(@NonNull String localId) { this.localId = localId; }
     public void setId_from(String id_from) {this.id_from = id_from;}
@@ -98,10 +98,24 @@ public class ChatMessage {
     public void setStatus(String status) { this.status = status; }
     public void setServerId(int id) {this.serverId = id;}
 
+    public boolean isTyping() {
+        return isTyping;
+    }
+
+    public void setTyping(boolean typing) {
+        isTyping = typing;
+    }
+
     public static ChatMessage fromJson(JSONObject o) {
+
+        String localId = o.optString("localId", null);
+        if (localId == null || localId.isEmpty()) {
+            // fallback to serverId or generate UUID
+            localId = "srv_" + o.optInt("id");
+        }
         return new ChatMessage(
                 o.optInt("id"),
-                o.optString("localId", null),
+                localId,
                 o.optString("id_from"),
                 o.optString("id_to"),
 

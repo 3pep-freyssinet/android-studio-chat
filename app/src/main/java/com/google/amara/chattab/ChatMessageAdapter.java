@@ -10,6 +10,8 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -44,19 +46,30 @@ import java.util.Objects;
 public class ChatMessageAdapter
         extends ListAdapter<ChatMessage, RecyclerView.ViewHolder> {
 
-    private static final int VIEW_TYPE_ME    = 1;
-    private static final int VIEW_TYPE_OTHER = 2;
+    private static final int VIEW_TYPE_ME     = 1;
+    private static final int VIEW_TYPE_OTHER  = 2;
+    //private static final int VIEW_TYPE_TYPING = 3; // ✅ UNIQUE
 
     private final String myUserId; // = SocketManager.getUserId();
 
     public ChatMessageAdapter(String myUserId) {
         super(DIFF_CALLBACK);
+
+        Log.d("ADAPTER", "constructor");
+
         this.myUserId = myUserId;
     }
 
+
     @Override
     public int getItemViewType(int position) {
+
         ChatMessage msg = getItem(position);
+
+        //if (msg.isTyping()) {
+        //    return VIEW_TYPE_TYPING; // ✅ now distinct
+        //}
+
         return msg.getId_from().equals(myUserId)
                 ? VIEW_TYPE_ME
                 : VIEW_TYPE_OTHER;
@@ -70,6 +83,14 @@ public class ChatMessageAdapter
     ) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
 
+        /*
+        if (viewType == VIEW_TYPE_TYPING) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_typing, parent, false);
+            return new TypingViewHolder(v);
+        }
+        */
+
         if (viewType == VIEW_TYPE_ME) {
             View v = inflater.inflate(
                     R.layout.item_message_me, parent, false);
@@ -81,10 +102,22 @@ public class ChatMessageAdapter
         }
     }
 
+
+
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder,
+                                 int position) {
         // Fallback full bind when there are no payloads
+
         ChatMessage msg = getItem(position);
+
+        Log.d("ADAPTER", "position=" + position + " typing=" + msg.isTyping());
+
+        if (holder instanceof TypingViewHolder) {
+            //TypingViewHolder vh = (TypingViewHolder) holder;
+            //animateDots(vh);
+            return;
+        }
 
         if (holder instanceof MeViewHolder) {
             ((MeViewHolder) holder).bind(msg);
@@ -93,9 +126,35 @@ public class ChatMessageAdapter
         }
     }
 
+    private void animateDots(TypingViewHolder vh) {
+
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+
+                vh.dot1.animate().alpha(1f).setDuration(200).withEndAction(() ->
+                        vh.dot1.animate().alpha(0.3f).setDuration(200)).start();
+
+                vh.dot2.animate().alpha(1f).setStartDelay(150).setDuration(200).withEndAction(() ->
+                        vh.dot2.animate().alpha(0.3f).setDuration(200)).start();
+
+                vh.dot3.animate().alpha(1f).setStartDelay(300).setDuration(200).withEndAction(() ->
+                        vh.dot3.animate().alpha(0.3f).setDuration(200)).start();
+
+                handler.postDelayed(this, 900);
+            }
+        };
+
+        handler.post(runnable);
+    }
+
     @Override
     public void onBindViewHolder(
-            @NonNull RecyclerView.ViewHolder holder, int position,  @NonNull List<Object> payloads) {
+            @NonNull RecyclerView.ViewHolder holder,
+            int position,
+            @NonNull List<Object> payloads) {
 
         if (payloads.isEmpty()) {
             // No partial update → do full bind
@@ -145,7 +204,15 @@ public class ChatMessageAdapter
 
                 @Override
                 public boolean areItemsTheSame(@NonNull ChatMessage a, @NonNull ChatMessage b) {
-                    return a.getLocalId().equals(b.getLocalId());
+
+                    /*
+                    if (a.getType().equals(String.valueOf(VIEW_TYPE_TYPING)) &&
+                            b.getType().equals(String.valueOf(VIEW_TYPE_TYPING))) {
+                        return true; // typing item is singleton per conversation
+                    }
+                    */
+
+                    return Objects.equals(a.getLocalId(), b.getLocalId());
                 }
 
                 /*
@@ -190,8 +257,19 @@ public class ChatMessageAdapter
                     return a.equals(b);
                 }
             };
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    class TypingViewHolder extends RecyclerView.ViewHolder {
 
+        View dot1, dot2, dot3;
 
+        public TypingViewHolder(@NonNull View itemView) {
+            super(itemView);
+
+            dot1 = itemView.findViewById(R.id.dot1);
+            dot2 = itemView.findViewById(R.id.dot2);
+            dot3 = itemView.findViewById(R.id.dot3);
+        }
+    }
     /////////////////////////////////////////////////////////
     static class MeViewHolder extends RecyclerView.ViewHolder {
         TextView    message, time;

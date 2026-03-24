@@ -97,6 +97,10 @@ public class ChatSharedViewModel extends AndroidViewModel {
         repository.start();
     }
 
+    public LiveData<Boolean> getTyping() {
+        return repository.getTyping();
+    }
+
     /*
     public void sendMessage(String text) {
 

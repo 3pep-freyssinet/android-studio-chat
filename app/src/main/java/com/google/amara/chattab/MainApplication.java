@@ -1,5 +1,6 @@
 package com.google.amara.chattab;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Application;
 import android.app.Dialog;
@@ -10,11 +11,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.net.ConnectivityManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.amara.chattab.utils.JwtUtils;
 import com.google.android.material.snackbar.Snackbar;
@@ -30,24 +35,31 @@ import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
 
-public class MainApplication extends Application {
+import androidx.lifecycle.DefaultLifecycleObserver;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.ProcessLifecycleOwner;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleEventObserver;
+
+public class MainApplication extends Application{
 
     public static final String SOCKET_URL = "https://android-chat-server.onrender.com";
-
+    private int activityReferences = 0;
+    private boolean isActivityChangingConfigurations = false;
 
     //Alice - redmi
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMxMywidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzMxMzc1MDQsImV4cCI6MTc3MzIyMzkwNH0.00TuCzs4ysZq3__OANhRXtudUy1ExGk51JZi2JkHIL0";
-    public static String myId     = "313";
-    public static String friendId = "314";
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjM2OCwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzQzNDUxNTUsImV4cCI6MTc3NDQzMTU1NX0.Is2s4IKNCiBMBAalN9k37SDd92Wp5CRG7Me0V3nFNxc";
+    //public static String myId     = "368";
+    //public static String friendId = "369";
 
 
     private static final String TAG        = "SocketTestActivity";
     public static String currentChatUserId; //set when a user tapes an avatar to open conversation
 
     //Fanny- poco
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMxNCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzMxMzc4MjYsImV4cCI6MTc3MzIyNDIyNn0.5jqyy3YikvbrkFs3ljb8t1nk-wPll3GoeljSAA3TiJU";
-    //public static String myId     = "314";
-    //public static String friendId = "313";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjM2OSwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzQzNDUyNDAsImV4cCI6MTc3NDQzMTY0MH0.n3KScwgyY3duA2bvxjxHboi19OV7W-yD25GZndqT7Pg";
+    public static String myId     = "369";
+    public static String friendId = "368";
 
     private static Socket socket;
 
@@ -78,6 +90,47 @@ public class MainApplication extends Application {
 
         SocketManager.init(SOCKET_URL, JWT_TOKEN, userId);
         SocketManager.connect();
+
+
+        ProcessLifecycleOwner.get()
+                .getLifecycle()
+                .addObserver(new DefaultLifecycleObserver() {
+
+                    @Override
+                    public void onStart(@NonNull LifecycleOwner owner) {
+
+                            Log.d("SOCKET","lifecycle → onStart");
+
+                            //SocketManager.recreateSocket();
+
+                            Socket socket = SocketManager.getSocket();
+
+                        if (socket != null && !socket.connected()) {
+                            socket.connect(); // ✅ safe
+                        }
+                    }
+
+                    @Override
+                    public void onStop(@NonNull LifecycleOwner owner) {
+
+                        Log.d("SOCKET","lifecycle → onStop");
+
+                        Socket socket = SocketManager.getSocket();
+
+                        if (socket != null) {
+
+                            // ⭐ tell server user is no longer realtime-reachable
+                            if (socket.connected()) {
+                                socket.emit("user_status_change", "offline");
+                            }
+
+                            // ⭐ kill transport (VERY important on Android)
+                            socket.disconnect();
+                        }
+                    }
+                });
+
+
     }
 
 
@@ -164,15 +217,6 @@ public class MainApplication extends Application {
     //}
 
 
-    @Override
-    public void onConfigurationChanged(Configuration newConfiguration) {
-        super.onConfigurationChanged(newConfiguration);
-    }
-
-    @Override
-    public void onLowMemory(){
-        super.onLowMemory();
-    }
 
     private void showNetworkStatus(String status) {
         //View view = getWindow().getDecorView().findViewById(android.R.id.content);

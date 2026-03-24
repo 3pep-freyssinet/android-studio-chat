@@ -23,11 +23,11 @@ public class ChatUser implements Serializable,
     public String chatId;               // id in the chat
     public String imageProfile;         //image encoded base 64 string.
     //public boolean firstTimeAccessDatabase;//limit access to db one time only
-    public int status;                  //0=gone, 1=connected,  2=standby, 3=blacklist
-    public int notSeenMessagesNumber;   //number of not seen messages
-    public String connectedAt;            //current connection time
-    public String lastConnectedAt;        //last connection time
-    public String disconnectedAt;         //disccnnection time
+    public int    status;               //0=gone, 1=connected,  2=standby, 3=blacklist
+    public int    notSeenMessagesNumber;//number of not seen messages
+    public String connectedAt;          //current connection time
+    public String lastConnectedAt;      //last connection time
+    public String disconnectedAt;       //disccnnection time
     public String blacklistAuthor;      // the author of blacklist
 
     public ChatUser() {}

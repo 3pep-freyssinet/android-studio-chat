@@ -111,6 +111,20 @@
                     android:layout_height="wrap_content"
                     android:clipToPadding="false"
                     android:scrollbars="vertical" />
+
+                <!-- ⭐ Typing indicator -->
+                <LinearLayout
+                    android:id="@+id/typingContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:padding="8dp"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/bg_typing_bubble">
+
+                    <!-- your animated dots -->
+                    <include layout="@layout/item_typing"/>
+                </LinearLayout>
                 <!--
                 <ProgressBar
                     android:id="@+id/progressCircularBar"

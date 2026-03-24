@@ -2,6 +2,7 @@ package com.google.amara.chattab;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
@@ -33,6 +34,9 @@ public class ChatUserAdapter
 
     private List<ChatUser> chatUsers = new ArrayList<>();
     private final Context context;
+
+    private static final int TYPE_MESSAGE = 0;
+    private static final int TYPE_TYPING  = 1;
 
     // Click callback
     public interface OnUserClickListener {
@@ -78,6 +82,24 @@ public class ChatUserAdapter
     ) {
         ChatUser user = chatUsers.get(position);
         int unread    = user.getNotSeenMessagesNumber();
+
+        switch(user.getStatus()) {
+
+            case UserStatus.ONLINE:
+                holder.badge.setBackgroundTintList(
+                        ColorStateList.valueOf(Color.GREEN));
+                break;
+
+            case UserStatus.AWAY:
+                holder.badge.setBackgroundTintList(
+                        ColorStateList.valueOf(Color.rgb(255,165,0)));
+                break;
+
+            default: //offline
+                holder.badge.setBackgroundTintList(
+                        ColorStateList.valueOf(Color.RED));
+        }
+
 
         if (unread > 0) {
             holder.unreadBadge.setVisibility(View.VISIBLE);
@@ -138,6 +160,7 @@ public class ChatUserAdapter
         TextView lastTimeConnection;
         ImageView imageProfile;
         ImageView statusView;
+        ImageView badge;
         TextView notSeenMessages;
         TextView unreadBadge;
 
@@ -150,6 +173,7 @@ public class ChatUserAdapter
             statusView          = itemView.findViewById(R.id.status_view);
             notSeenMessages     = itemView.findViewById(R.id.tv_not_seen_messages);
             unreadBadge         = itemView.findViewById(R.id.tv_unread_badge);
+            badge               = itemView.findViewById(R.id.badge);
 
         }
     }

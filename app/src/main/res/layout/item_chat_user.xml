@@ -34,6 +34,14 @@
             android:background="@drawable/bg_unread_badge"
             android:visibility="gone"/>
 
+        <!-- 🔥 status Badge -->
+        <ImageView
+            android:id="@+id/badge"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_gravity="start|top"
+            android:background="@drawable/status_circle"/>
+
     </FrameLayout>
 
     <!-- Right Side Info -->

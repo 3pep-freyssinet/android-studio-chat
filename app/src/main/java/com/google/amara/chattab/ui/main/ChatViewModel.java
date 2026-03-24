@@ -38,5 +38,13 @@ public class ChatViewModel extends AndroidViewModel {
     public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
         return repo.getMessages(myId, friendId);
     }
+
+    public LiveData<Boolean> getTyping() {
+        return repo.getTyping();
+    }
+
+    public void loadConversation(String myId, String friendId) {
+        repo.fetchConversationFromServer(myId, friendId);
+    }
 }
 

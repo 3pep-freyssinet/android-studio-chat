@@ -29,6 +29,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
@@ -123,6 +124,20 @@ public class ChatBoxMessage extends Fragment {
     private ImageView sendButton, attachButton, imageUpload, previewImage, btnRemoveImage;
     private EditText messageInput;
     private ActivityResultLauncher<Intent> imagePickerLauncher;
+    private View typingContainer;
+
+    private Handler typingHandler = new Handler(Looper.getMainLooper());
+    private boolean isTyping    = false;
+    private long lastTypingSent = 0;
+    private static final long TYPING_INTERVAL   = 1500; // 1.5 sec
+    private static final long TYPING_KEEP_ALIVE = 3000; // 3s
+    JSONObject payload = new JSONObject();
+    private boolean conversationRequested = false;
+
+    private final Runnable typingTimeout = () -> {
+        isTyping = false;
+        SocketManager.getSocket().emit("typing:stop", buildTypingPayload());
+    };
 
 
     @Override
@@ -148,6 +163,18 @@ public class ChatBoxMessage extends Fragment {
 
         chatViewModel = new ChatViewModel(requireActivity().getApplication());
 
+    }
+
+    private JSONObject buildTypingPayload() {
+        JSONObject obj = new JSONObject();
+
+        try {
+            obj.put("to", MainApplication.friendId);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return obj;
     }
 
     private void handleImagePicked(Uri imageUri) {
@@ -200,6 +227,8 @@ public class ChatBoxMessage extends Fragment {
         btnRemoveImage  = view.findViewById(R.id.btn_remove_image);
 
         attachButton    = view.findViewById(R.id.iv_attach);
+        typingContainer = view.findViewById(R.id.typingContainer);
+
 
         return view;
     }
@@ -212,6 +241,10 @@ public class ChatBoxMessage extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         Log.d("ChatBoxMessage", "onViewCreated ");
+        Log.d("IDS", "Main=" + MainApplication.myId);
+        Log.d("IDS", "Socket=" + SocketManager.getUserId());
+
+        //chatViewModel.loadConversation(MainApplication.myId, MainApplication.friendId);
 
         Executors.newSingleThreadExecutor().execute(() -> {
             String withUserId = MainApplication.friendId;
@@ -257,6 +290,7 @@ public class ChatBoxMessage extends Fragment {
         );
         messageRecycler.setAdapter(adapter);
 
+
         /*
         sharedViewModel.getMessages().observe(
                 getViewLifecycleOwner(),
@@ -272,8 +306,35 @@ public class ChatBoxMessage extends Fragment {
                 });
         */
 
+        chatViewModel.getTyping().observe(getViewLifecycleOwner(), isTyping -> {
+
+            Log.d("TYPING_UI", "isTyping=" + isTyping);
+
+            if (isTyping) {
+                typingContainer.setVisibility(View.VISIBLE);
+                messageRecycler.post(() ->
+                        messageRecycler.scrollToPosition(adapter.getItemCount() - 1)
+                );
+            } else {
+                typingContainer.setVisibility(View.GONE);
+            }
+        });
+
         chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId).observe(getViewLifecycleOwner(), list -> {
-            adapter.submitList(list);
+            Log.d("TYPING", "observer triggered, size=" + list.size());
+            if (!list.isEmpty()) Log.d("TYPING", "observer triggered, list=" + list.get(0).toString());
+            
+            if (list.isEmpty() && !conversationRequested) {
+                conversationRequested = true; // ✅ prevent multiple calls
+                chatViewModel.loadConversation(MainApplication.myId, MainApplication.friendId);
+            }
+
+            // ⭐ FORCE remove typing BEFORE rendering messages
+            typingContainer.setVisibility(View.GONE);
+
+            //adapter.submitList(list);// or notifyDataSetChanged()
+            adapter.submitList(new ArrayList<>(list)); // ⭐ FORCE refresh
+
 
             messageRecycler.post(() ->
                     messageRecycler.scrollToPosition(list.size() - 1)
@@ -305,6 +366,32 @@ public class ChatBoxMessage extends Fragment {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 sharedViewModel.setDraftText(s.toString());
+                sharedViewModel.repository.notifyTyping(MainApplication.friendId); //toUserId);
+
+                long now = System.currentTimeMillis();
+
+                // ✅ FIRST keystroke → send start
+                if (!isTyping) {
+                    isTyping = true;
+                    SocketManager.getSocket().emit("typing:start", buildTypingPayload());
+                    lastTypingSent = now;
+
+                    Log.d("TYPING_SEND", "typing:start (first)");
+                }
+
+                // ✅ keep-alive every few seconds (NOT every key)
+                else if (now - lastTypingSent > TYPING_KEEP_ALIVE) {
+                    SocketManager.getSocket().emit("typing:start", buildTypingPayload());
+                    lastTypingSent = now;
+
+                    Log.d("TYPING_SEND", "typing:start (keep-alive)");
+                }
+
+                // reset stop timer
+                typingHandler.removeCallbacks(typingTimeout);
+                typingHandler.postDelayed(typingTimeout, 2000);
+
+
             }
         });
 
@@ -317,6 +404,12 @@ public class ChatBoxMessage extends Fragment {
             Uri imageUri = sharedViewModel.getDraftImage().getValue();
 
             if (text.isEmpty() && imageUri == null) return;
+
+            //stop typing
+            //⭐ ADD THIS BEFORE sending message
+            //SocketManager.getSocket().emit("typing:stop", payload);
+
+            SocketManager.getSocket().emit("typing:stop", sharedViewModel.repository.createTypingPayload(MainApplication.friendId));
 
             sharedViewModel.sendMessage(localId, text, imageUri, requireContext());
 
@@ -331,6 +424,13 @@ public class ChatBoxMessage extends Fragment {
             intent.setType("image/*");
             imagePickerLauncher.launch(intent);
         });
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+
+        typingHandler.removeCallbacksAndMessages(null);
     }
 
     public void uploadImage(String imagePath){
