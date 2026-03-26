@@ -82,7 +82,7 @@ public class ChatMessage {
     //public int    getUploadProgress() { return uploadProgress; }
     public String getStatus() { return status; }
     public Integer getServerId() {return serverId;}
-    private boolean isTyping = false;
+    public boolean isTyping = false;
 
     public void setLocalId(@NonNull String localId) { this.localId = localId; }
     public void setId_from(String id_from) {this.id_from = id_from;}

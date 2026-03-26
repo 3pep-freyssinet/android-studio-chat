@@ -133,11 +133,14 @@ public class ChatBoxMessage extends Fragment {
     private static final long TYPING_KEEP_ALIVE = 3000; // 3s
     JSONObject payload = new JSONObject();
     private boolean conversationRequested = false;
+    private boolean isUserTyping = false;
+    private boolean fragmentJustCreated = true;
 
     private final Runnable typingTimeout = () -> {
         isTyping = false;
         SocketManager.getSocket().emit("typing:stop", buildTypingPayload());
     };
+
 
 
     @Override
@@ -240,6 +243,8 @@ public class ChatBoxMessage extends Fragment {
     ) {
         super.onViewCreated(view, savedInstanceState);
 
+        sharedViewModel.repository.resetTyping();
+
         Log.d("ChatBoxMessage", "onViewCreated ");
         Log.d("IDS", "Main=" + MainApplication.myId);
         Log.d("IDS", "Socket=" + SocketManager.getUserId());
@@ -323,7 +328,7 @@ public class ChatBoxMessage extends Fragment {
         chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId).observe(getViewLifecycleOwner(), list -> {
             Log.d("TYPING", "observer triggered, size=" + list.size());
             if (!list.isEmpty()) Log.d("TYPING", "observer triggered, list=" + list.get(0).toString());
-            
+
             if (list.isEmpty() && !conversationRequested) {
                 conversationRequested = true; // ✅ prevent multiple calls
                 chatViewModel.loadConversation(MainApplication.myId, MainApplication.friendId);
@@ -360,38 +365,22 @@ public class ChatBoxMessage extends Fragment {
 
         //listen to text changes
         messageInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {
+                isUserTyping = true;
+            }
             @Override public void afterTextChanged(Editable s) {}
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                sharedViewModel.setDraftText(s.toString());
-                sharedViewModel.repository.notifyTyping(MainApplication.friendId); //toUserId);
 
-                long now = System.currentTimeMillis();
-
-                // ✅ FIRST keystroke → send start
-                if (!isTyping) {
-                    isTyping = true;
-                    SocketManager.getSocket().emit("typing:start", buildTypingPayload());
-                    lastTypingSent = now;
-
-                    Log.d("TYPING_SEND", "typing:start (first)");
+                // ❌ Block typing events on initial setup or rotation
+                if (fragmentJustCreated) {
+                    fragmentJustCreated = false;
+                    Log.d("TYPING_BLOCK", "Blocked typing: fragment just created");
+                    return;
                 }
 
-                // ✅ keep-alive every few seconds (NOT every key)
-                else if (now - lastTypingSent > TYPING_KEEP_ALIVE) {
-                    SocketManager.getSocket().emit("typing:start", buildTypingPayload());
-                    lastTypingSent = now;
-
-                    Log.d("TYPING_SEND", "typing:start (keep-alive)");
-                }
-
-                // reset stop timer
-                typingHandler.removeCallbacks(typingTimeout);
-                typingHandler.postDelayed(typingTimeout, 2000);
-
-
+                sharedViewModel.repository.notifyTyping(MainApplication.friendId);
             }
         });
 
@@ -399,6 +388,9 @@ public class ChatBoxMessage extends Fragment {
 
         sendButton.setOnClickListener(v -> {
             final String localId = UUID.randomUUID().toString();
+
+            //prevent 3 dots bubble from appearing when send button is clicked.
+            fragmentJustCreated = true;
 
             String text  = messageInput.getText().toString().trim();
             Uri imageUri = sharedViewModel.getDraftImage().getValue();
@@ -485,6 +477,11 @@ public class ChatBoxMessage extends Fragment {
     public void onPause() {
         super.onPause();
         MainApplication.currentChatUserId = null;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
     }
 }
 

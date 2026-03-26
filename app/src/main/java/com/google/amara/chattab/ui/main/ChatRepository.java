@@ -49,7 +49,7 @@ public class ChatRepository {
     private Socket socket;
 
     MediatorLiveData<List<ChatUser>> usersWithUnread          = new MediatorLiveData<>();
-    
+
     private final MutableLiveData<List<ChatUser>> users       = new MutableLiveData<>();
 
     //private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
@@ -64,7 +64,8 @@ public class ChatRepository {
 
     private LiveData<List<ChatMessage>> currentSource;
 
-    private List<ChatMessage> dbMessages = new ArrayList<>();
+    //private List<ChatMessage> dbMessages = new ArrayList<>();
+
     private boolean isTyping = false;
     //private Handler typingHandler = new Handler(Looper.getMainLooper());
 
@@ -74,6 +75,7 @@ public class ChatRepository {
         @Override
         public void run() {
             Log.d("TYPING", "typing timeout → stop");
+            Log.e("TYPING_TRACE", "typing FALSE");
             typing.postValue(false);
         }
     };
@@ -87,7 +89,8 @@ public class ChatRepository {
     public MessageDao messageDao;
     private Context appContext;
     private final String VIEW_TYPE_TYPING = "3";
-
+    private long lastTypingSentAt = 0;
+    private volatile long lastUserInputAt = 0;
 
     private ChatRepository(Socket socket) {
         this.socket = socket;
@@ -138,6 +141,10 @@ public class ChatRepository {
         messages.postValue(updated);
     }
 
+    public void resetTyping() {
+        typing.setValue(false);
+    }
+
     private void removeTypingMessage() {
 
         List<ChatMessage> current = messages.getValue();
@@ -155,12 +162,14 @@ public class ChatRepository {
         messages.postValue(updated);
     }
 
+
+
     public void notifyTyping(String toUserId) {
 
         if (!isTyping) {
             isTyping = true;
-
             socket.emit("typing:start", createTypingPayload(toUserId));
+            Log.d("TYPING_SEND", "typing:start SENT");
         }
 
         if (stopTypingRunnable != null) {
@@ -169,12 +178,21 @@ public class ChatRepository {
 
         stopTypingRunnable = () -> {
             isTyping = false;
-
             socket.emit("typing:stop", createTypingPayload(toUserId));
+            Log.d("TYPING_SEND", "typing:stop SENT");
         };
 
         typingHandler.postDelayed(stopTypingRunnable, 1500);
-        typingHandler.postDelayed(() -> removeTypingMessage(), 3000);
+    }
+
+
+
+    public void markUserInput() {
+        lastUserInputAt = System.currentTimeMillis();
+    }
+
+    private boolean isUserActivelyTyping() {
+        return System.currentTimeMillis() - lastUserInputAt < 800;
     }
 
     public JSONObject createTypingPayload(String toUserId) {
@@ -233,7 +251,7 @@ public class ChatRepository {
         socket.on(Socket.EVENT_CONNECT, args -> {
             Log.d("SOCKET", "🟢 Connected");
             resendPendingMessages();   // 🔥 SEND QUEUED MESSAGES HERE
-            processPendingImageUploads(); 
+            processPendingImageUploads();
         });
 
         socket.on(Socket.EVENT_DISCONNECT, args -> {
@@ -342,14 +360,14 @@ public class ChatRepository {
 
         List<ChatMessage> merged = new ArrayList<>();
 
-        if (dbMessages.isEmpty()) {
-            Log.d("MERGE", "Skip empty emission");
-            return; // ⭐ CRITICAL FIX
-        }
+        //if (dbMessages.isEmpty()) {
+        //    Log.d("MERGE", "Skip empty emission");
+        //    return; // ⭐ CRITICAL FIX
+        //}
 
-        if (dbMessages != null) {
-            merged.addAll(dbMessages);
-        }
+        //if (dbMessages != null) {
+        //    merged.addAll(dbMessages);
+        //}
 
         /*
         if (isTyping) {
@@ -388,28 +406,28 @@ public class ChatRepository {
                 if (o == null) continue;
 
                 ChatUser u = new ChatUser(
-                            o.optString("nickname"),
-                            o.optString("id"),
-                            o.optInt("status"),
-                            o.optInt("notSeenMessages")
-                    );
-                    list.add(u);
+                        o.optString("nickname"),
+                        o.optString("id"),
+                        o.optInt("status"),
+                        o.optInt("notSeenMessages")
+                );
+                list.add(u);
+            }
+            //filter the list. Remove the user who his id = myId
+            String myId = SocketManager.getCurrentUserId();
+
+            List<ChatUser> filtered = new ArrayList<>();
+
+            for (ChatUser u : list) {
+                if (!u.getChatId().equals(myId)) {
+                    filtered.add(u);
                 }
-                //filter the list. Remove the user who his id = myId
-                String myId = SocketManager.getCurrentUserId();
+            }
 
-                List<ChatUser> filtered = new ArrayList<>();
+            users.postValue(filtered);
 
-                for (ChatUser u : list) {
-                    if (!u.getChatId().equals(myId)) {
-                        filtered.add(u);
-                    }
-                }
-
-                users.postValue(filtered);
-
-                applyPresence();
-            });
+            applyPresence();
+        });
 
         //Load conversations from backend.
         socket.on("chat:conversation_history", args -> {
@@ -441,6 +459,7 @@ public class ChatRepository {
         });
 
         //Receive new message from backend.
+        /*
         socket.on("chat:new_message", args -> {
             isTyping = false;
             mergeAndPost();
@@ -469,6 +488,35 @@ public class ChatRepository {
                 socket.emit("chat:mark_seen", payload);
 
                 Log.d("ChatRepo","payload="+payload);
+            }
+        });
+        */
+
+        socket.on("chat:new_message", args -> {
+
+            isTyping = false;
+
+            JSONObject data       = (JSONObject) args[0];
+            ChatMessage serverMsg = ChatMessage.fromJson(data);
+
+            // 🔥 ONLY write to DB
+            Executors.newSingleThreadExecutor().execute(() ->
+                    messageDao.insertMessage(serverMsg)
+            );
+
+            // ✅ keep this logic (it's correct)
+            if (serverMsg.id_to.equals(MainApplication.myId)
+                    && serverMsg.id_from.equals(MainApplication.currentChatUserId)) {
+
+                JSONObject payload = new JSONObject();
+
+                try {
+                    payload.put("fromUserId", serverMsg.id_from);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+
+                socket.emit("chat:mark_seen", payload);
             }
         });
 
@@ -577,8 +625,8 @@ public class ChatRepository {
                     user.notSeenMessagesNumber = obj.getInt("unread_count");
 
                 } catch (JSONException e) {
-                        throw new RuntimeException(e);
-                 }
+                    throw new RuntimeException(e);
+                }
 
                 users_.add(user);
             }
@@ -647,12 +695,16 @@ public class ChatRepository {
         //});
 
 
+        /*
         socket.on("typing:start", args -> {
             Log.d("TYPING", "typing:start received");
 
             //if (Boolean.TRUE.equals(typing.getValue())) return; // ignore duplicate
 
-            typing.postValue(true);
+            if (!Boolean.TRUE.equals(typing.getValue())) {
+                typing.postValue(true);
+            }
+            //typing.postValue(true);
 
             // ✅ cancel ONLY this runnable
             typingHandler.removeCallbacks(typingTimeoutRunnable);
@@ -660,15 +712,75 @@ public class ChatRepository {
             // ✅ schedule again
             typingHandler.postDelayed(typingTimeoutRunnable, 5000);
         });
+        */
 
+        socket.on("typing:start", args -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
 
+                String fromUserId = data.optString("from");
+                String toUserId   = data.optString("to");
+
+                String myId = SocketManager.getUserId();
+                String currentChatUserId = MainApplication.currentChatUserId;
+
+                Log.e("TYPING_TRACE", "typing:start payload=" + data.toString());
+
+                // ✅ ONLY accept if:
+                // 1. NOT from me
+                // 2. AND from the user I'm currently chatting with
+
+                if (fromUserId == null ||
+                        fromUserId.equals(myId) ||
+                        !fromUserId.equals(currentChatUserId)) {
+
+                    Log.e("TYPING_TRACE", "IGNORED typing event");
+                    return;
+                }
+
+                Log.e("TYPING_TRACE", "ACCEPTED typing event");
+
+                typing.postValue(true);
+
+                typingHandler.removeCallbacks(typingTimeoutRunnable);
+                typingHandler.postDelayed(typingTimeoutRunnable, 5000);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+        /*
         socket.on("typing:stop", args -> {
             Log.d("TYPING", "typing:stop received");
 
             typingHandler.removeCallbacks(typingTimeoutRunnable);
             typing.postValue(false);
         });
+        */
 
+        socket.on("typing:stop", args -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+
+                String fromUserId = data.optString("from");
+                String myId = SocketManager.getUserId();
+                String currentChatUserId = MainApplication.currentChatUserId;
+
+                if (fromUserId == null ||
+                        fromUserId.equals(myId) ||
+                        !fromUserId.equals(currentChatUserId)) {
+
+                    return;
+                }
+
+                typingHandler.removeCallbacks(typingTimeoutRunnable);
+                typing.postValue(false);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
 
         socket.on("chat:conversation", args -> {
 
@@ -875,7 +987,7 @@ public class ChatRepository {
 
                 // 🔥 SAVE TO ROOM
                 Executors.newSingleThreadExecutor().execute(() ->
-                                messageDao.insertMessage(merged));
+                        messageDao.insertMessage(merged));
 
             } else {
                 // ✅ KEEP ALL OTHER MESSAGES
