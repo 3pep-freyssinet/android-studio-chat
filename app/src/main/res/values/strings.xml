@@ -17,6 +17,10 @@
     <string name="attachment_title">Download incoming attachments</string>
     <string name="attachment_summary_on">Automatically download attachments for incoming emails
     </string>
+    <string name="connected_at">Connected: %1$s</string>
+    <string name="last_seen">Last seen: %1$s</string>
+    <string name="just_now">just now</string>
+
     <string name="attachment_summary_off">Only download attachments when manually requested</string>
     <string name="remember_me">Remember me</string>
     <string name="rememberMe">Remember me</string>

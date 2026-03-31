@@ -135,5 +135,19 @@ public interface MessageDao {
 """)
     LiveData<Integer> getUnreadCount(String friendId);
 
+    //pagination queries
+
+    @Query("SELECT * FROM messages WHERE " +
+            "(id_from = :myId AND id_to = :friendId) OR " +
+            "(id_from = :friendId AND id_to = :myId) " +
+            "ORDER BY sent_at DESC " +
+            "LIMIT :limit OFFSET :offset")
+    List<ChatMessage> getMessagesBatch(String myId, String friendId, int limit, int offset);
+
+    // Optional: get the total count for the conversation
+    @Query("SELECT COUNT(*) FROM messages WHERE " +
+            "(id_from = :myId AND id_to = :friendId) OR " +
+            "(id_from = :friendId AND id_to = :myId)")
+    int getConversationCount(String myId, String friendId);
 
 }

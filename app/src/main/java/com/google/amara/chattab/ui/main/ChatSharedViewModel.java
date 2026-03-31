@@ -25,8 +25,11 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 
 
-public class ChatSharedViewModel extends AndroidViewModel {
+public class ChatSharedViewModel extends AndroidViewModel
+                                 implements ChatRepository.UserStatusListener {
     //String localId = UUID.randomUUID().toString();
+
+
 
     public ChatRepository repository;
     private LiveData<List<ChatUser>> users;
@@ -48,6 +51,7 @@ public class ChatSharedViewModel extends AndroidViewModel {
     public ChatSharedViewModel(@NonNull Application application) {
         super(application);
         repository = ChatRepository.get(application);
+        repository.setUserStatusListener(this);
     }
 
     public void clearDraft() {
@@ -66,6 +70,10 @@ public class ChatSharedViewModel extends AndroidViewModel {
 
     public LiveData<ChatUser> getSelectedUser() {
         return selectedUser;
+    }
+
+    public void updateSelectedUser(ChatUser user) {
+        selectedUser.postValue(user);
     }
 
     public LiveData<List<ChatMessage>> getMessages() {
@@ -211,6 +219,11 @@ public class ChatSharedViewModel extends AndroidViewModel {
 
     public void resetUnreadCounter(String friendId) {
         //repository.resetUnreadCounter(friendId);
+    }
+
+    @Override
+    public void onUserStatusChanged(ChatUser user) {
+        updateSelectedUser(user);
     }
 }
 

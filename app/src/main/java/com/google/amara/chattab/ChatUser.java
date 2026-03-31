@@ -150,7 +150,7 @@ public class ChatUser implements Serializable,
     }
 
     //Parcelable methods
-    protected ChatUser(Parcel in) {
+    public ChatUser(Parcel in) {
         this.nickname                = in.readString();
         this.imageProfile            = in.readString();
         this.chatId                  = in.readString();

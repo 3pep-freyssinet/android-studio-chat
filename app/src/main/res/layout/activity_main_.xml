@@ -130,8 +130,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/enter_chat"
-        android:layout_marginTop="20dp"
-        android:background="@color/colorYellow" >
+        android:layout_marginTop="20dp">
+
+        <!-- android:background="@color/colorYellow" -->
 
         <TextView
             android:id="@+id/textView_register"

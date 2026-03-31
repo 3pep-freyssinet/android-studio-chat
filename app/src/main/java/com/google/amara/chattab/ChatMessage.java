@@ -37,6 +37,10 @@ public class ChatMessage {
     public String  status;
     public String  type;
     public boolean pending;
+    public boolean isTyping = false;
+
+    @Ignore
+    private String displayText;
 
     @Ignore
     private String displayImageSource;
@@ -46,7 +50,11 @@ public class ChatMessage {
     public static final String STATUS_DELIVERED = "delivered";
     public static final String STATUS_SEEN      = "seen";
 
-    //public String status;
+    //used in message separator
+    public static final int TYPE_MESSAGE        = 0;
+    public static final int TYPE_DATE_HEADER    = 1;
+
+    private int itemType = TYPE_MESSAGE;
 
     // Needed empty constructor
     public ChatMessage() {}
@@ -68,6 +76,25 @@ public class ChatMessage {
         this.pending        = pending;
     }
 
+    @Ignore
+    public ChatMessage(ChatMessage other) {
+        this.serverId      = other.serverId;
+        this.localId       = other.localId;
+        this.id_from       = other.id_from;
+        this.id_to         = other.id_to;
+        this.message       = other.message;
+        this.localImageUri = other.localImageUri;
+        this.remoteUrl     = other.remoteUrl;
+        this.sent_at       = other.sent_at;
+        this.status        = other.status;
+        this.type          = other.type;
+        this.pending       = other.pending;
+
+        // 🔥 VERY IMPORTANT (UI fields)
+        this.itemType      = other.itemType;
+        this.displayText   = other.displayText;
+    }
+
     @NonNull
     public String getLocalId() { return localId; }
     public String getId_from() { return id_from; }
@@ -82,7 +109,12 @@ public class ChatMessage {
     //public int    getUploadProgress() { return uploadProgress; }
     public String getStatus() { return status; }
     public Integer getServerId() {return serverId;}
-    public boolean isTyping = false;
+
+    public int getItemType() {return itemType; }
+    public boolean getIsTyping() { return isTyping; }
+    public String getDisplayText() { return displayText; }
+
+
 
     public void setLocalId(@NonNull String localId) { this.localId = localId; }
     public void setId_from(String id_from) {this.id_from = id_from;}
@@ -97,14 +129,14 @@ public class ChatMessage {
     //public void setUploadProgress(int uploadProgress) { this.uploadProgress = uploadProgress; }
     public void setStatus(String status) { this.status = status; }
     public void setServerId(int id) {this.serverId = id;}
-
-    public boolean isTyping() {
-        return isTyping;
-    }
-
     public void setTyping(boolean typing) {
         isTyping = typing;
     }
+    public void setItemType(int itemType) {this.itemType = itemType; }
+    public void setDisplayText(String displayText) { this.displayText = displayText; }
+    public void setIsTyping(boolean isTyping){this.isTyping = isTyping;}
+
+    public boolean isTyping() { return isTyping; }
 
     public static ChatMessage fromJson(JSONObject o) {
 
@@ -180,7 +212,6 @@ public class ChatMessage {
 
         return displayImageSource;
     }
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

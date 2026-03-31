@@ -25,7 +25,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.HttpCookie;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -57,6 +60,13 @@ public class ChatRepository {
     private final MediatorLiveData<List<ChatMessage>> messages = new MediatorLiveData<>();
 
     private final MutableLiveData<Boolean> typing              = new MutableLiveData<>(false);
+    private final MutableLiveData<ChatUser> selectedUserLiveData = new MutableLiveData<>();
+
+    public interface UserStatusListener {
+        void onUserStatusChanged(ChatUser user);
+    }
+
+    private UserStatusListener listener;
 
     public LiveData<Boolean> getTyping() {
         return typing;
@@ -91,6 +101,10 @@ public class ChatRepository {
     private final String VIEW_TYPE_TYPING = "3";
     private long lastTypingSentAt = 0;
     private volatile long lastUserInputAt = 0;
+
+    //pagination
+    private static final int PAGE_SIZE = 20;
+    private int loadedMessages = 0;
 
     private ChatRepository(Socket socket) {
         this.socket = socket;
@@ -245,6 +259,9 @@ public class ChatRepository {
         });
     }
 
+    public void setUserStatusListener(UserStatusListener listener) {
+        this.listener = listener;
+    }
 
     private void attachSocketListeners() {
 
@@ -323,6 +340,7 @@ public class ChatRepository {
     public LiveData<List<ChatUser>> getUsers() {
         return users;
     }
+
 
     /*
     public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
@@ -641,33 +659,49 @@ public class ChatRepository {
 
 
         socket.on("user_status", args -> {
-            int status;
             try {
                 JSONObject data = (JSONObject) args[0];
-                String userId   = data.getString("userId");
-                String status_  = data.getString("status");
+                String userId = data.getString("userId");
+                String statusStr = data.getString("status");
 
-                if(status_.equals("offline")){
+                int status;
+                if (statusStr.equals("offline")) {
                     status = 0;
-                }else{
-                    if(status_.equals("online")){
-                        status = 1;
-                    }else{
-                        status = 2;//standby
-                    }
+                } else if (statusStr.equals("online")) {
+                    status = 1;
+                } else {
+                    status = 2;
                 }
 
                 Log.d("ChatRepo", "user_status: " + userId + " -> " + status);
 
                 List<ChatUser> current = users.getValue();
                 if (current == null) return;
-                for (ChatUser u : current) {
-                    if (u.getChatId().equals(userId)) {
-                        u.setStatus(status);
+
+                for (ChatUser user : current) {
+
+                    if (user.getChatId().equals(userId)) {
+
+                        user.setStatus(status);
+
+                        // 🔥 Update selected user if needed
+                        //ChatUser selected = selectedUserLiveData.getValue();
+
+                        //if (selected != null && selected.getChatId().equals(userId)) {
+                        //    selected.setStatus(status);
+
+                            // 🔥 Notify ViewModel
+                            if (listener != null) {
+                                listener.onUserStatusChanged(user);
+                            }
+                        //}
+
                         break;
                     }
                 }
+
                 users.postValue(new ArrayList<>(current));
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -1012,7 +1046,6 @@ public class ChatRepository {
     }
 
 
-
     public void joinConversation(ChatUser user) {
         if (socket == null || !socket.connected()) {
             Log.e("ChatRepo", "❌ Socket not connected");
@@ -1132,6 +1165,65 @@ public class ChatRepository {
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    public void loadInitialMessages(String myId, String friendId) {
+        loadedMessages = 0;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<ChatMessage> batch = messageDao.getMessagesBatch(myId, friendId, PAGE_SIZE, loadedMessages);
+            Collections.reverse(batch);
+
+            loadedMessages += batch.size();
+
+            // Update MediatorLiveData
+            new Handler(Looper.getMainLooper()).post(() -> messages.setValue(batch));
+        });
+    }
+
+    public void loadMoreMessages(String myId, String friendId) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<ChatMessage> batch = messageDao.getMessagesBatch(myId, friendId, PAGE_SIZE, loadedMessages);
+            Collections.reverse(batch); // oldest first
+
+            if (!batch.isEmpty()) {
+                loadedMessages += batch.size();
+
+                // Merge batch with existing messages
+                List<ChatMessage> current = messages.getValue() != null ? messages.getValue() : new ArrayList<>();
+                current.addAll(0, batch); // prepend older messages
+                new Handler(Looper.getMainLooper()).post(() -> messages.setValue(current));
+            }
+        });
+    }
+
+    public void generateFakeMessages(String myId, String friendId) {
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+
+            List<ChatMessage> fakeMessages = new ArrayList<>();
+
+            for (int i = 1; i <= 100; i++) {
+                ChatMessage msg = new ChatMessage();
+                msg.localId = UUID.randomUUID().toString();
+                msg.id_from = (i % 2 == 0) ? myId : friendId;
+                msg.id_to = (i % 2 == 0) ? friendId : myId;
+                msg.message = "Fake message #" + i;
+                msg.sent_at = Instant.now()
+                        .minusSeconds(60L * (100 - i))
+                        .toString();
+                msg.status = "seen";
+                msg.type = "text";
+                msg.pending = true;
+                msg.isTyping = true;
+
+                fakeMessages.add(msg);
+            }
+
+            messageDao.insertMessages(fakeMessages);
+
+            Log.d("FAKE_MSG", "Inserted into DB: " + fakeMessages.size());
+        });
     }
 
     //no longer used

@@ -8,11 +8,13 @@
     android:id="@+id/activity_main"
     tools:context=".TabChatActivity">
 
+    <!-- -->
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bat_layout"
+        android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/gradient"
+        android:fitsSystemWindows="true"
         android:theme="@style/AppTheme.AppBarOverlay">
 
         <TextView
@@ -34,7 +36,7 @@
             android:id="@+id/tabs"
             android:layout_width="match_parent"
             android:layout_height="40dp"
-
+            android:contentDescription="dummy"
             app:tabMaxWidth="0dp"
             app:tabGravity="fill"
             app:tabMode="fixed"

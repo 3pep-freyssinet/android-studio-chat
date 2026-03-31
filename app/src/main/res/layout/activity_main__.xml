@@ -143,6 +143,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
         android:layout_marginTop="10dp"
         android:layout_marginBottom="10dp"
         android:layout_weight="0.25"
@@ -153,6 +155,8 @@
             android:id="@+id/nickname"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
             android:layout_below="@id/ll_buttons_image_profile"
             android:layout_marginTop="10dp"
             android:hint="Enter your name !"

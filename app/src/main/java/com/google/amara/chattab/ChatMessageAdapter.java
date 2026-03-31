@@ -46,9 +46,12 @@ import java.util.Objects;
 public class ChatMessageAdapter
         extends ListAdapter<ChatMessage, RecyclerView.ViewHolder> {
 
-    private static final int VIEW_TYPE_ME     = 1;
-    private static final int VIEW_TYPE_OTHER  = 2;
-    //private static final int VIEW_TYPE_TYPING = 3; // ✅ UNIQUE
+    private static final int VIEW_TYPE_ME          = 1;
+    private static final int VIEW_TYPE_OTHER       = 2;
+    private static final int VIEW_TYPE_TYPING      = 3;
+    private static final int VIEW_TYPE_DATE_HEADER = 4 ;
+
+    private boolean showTyping = false;
 
     private final String myUserId; // = SocketManager.getUserId();
 
@@ -60,16 +63,37 @@ public class ChatMessageAdapter
         this.myUserId = myUserId;
     }
 
+    @Override
+    public int getItemCount() {
+        int count = super.getItemCount();
+        return showTyping ? count + 1 : count;
+    }
+
+    public void showTypingIndicator(boolean show) {
+        if (this.showTyping == show) return;
+
+        this.showTyping = show;
+
+        if (show) {
+            notifyItemInserted(getItemCount());
+        } else {
+            notifyItemRemoved(getItemCount());
+        }
+    }
 
     @Override
     public int getItemViewType(int position) {
 
+        // ⭐ LAST ITEM = typing
+        if (showTyping && position == getItemCount() - 1) {
+            return VIEW_TYPE_TYPING;
+        }
+
         ChatMessage msg = getItem(position);
 
-        //if (msg.isTyping()) {
-        //    return VIEW_TYPE_TYPING; // ✅ now distinct
-        //}
-
+        if (msg.getItemType() == ChatMessage.TYPE_DATE_HEADER) {
+            return VIEW_TYPE_DATE_HEADER;
+        }
         return msg.getId_from().equals(myUserId)
                 ? VIEW_TYPE_ME
                 : VIEW_TYPE_OTHER;
@@ -83,13 +107,17 @@ public class ChatMessageAdapter
     ) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
 
-        /*
-        if (viewType == VIEW_TYPE_TYPING) {
-            View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_typing, parent, false);
-            return new TypingViewHolder(v);
+        if (viewType == VIEW_TYPE_DATE_HEADER) {
+            View view = inflater.inflate(
+                    R.layout.item_date_header, parent, false);
+            return new DateViewHolder(view);
         }
-        */
+
+        if (viewType == VIEW_TYPE_TYPING) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_typing, parent, false);
+            return new TypingViewHolder(view);
+        }
 
         if (viewType == VIEW_TYPE_ME) {
             View v = inflater.inflate(
@@ -102,15 +130,21 @@ public class ChatMessageAdapter
         }
     }
 
-
-
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder,
                                  int position) {
-        // Fallback full bind when there are no payloads
+
+        // ✅ HANDLE TYPING FIRST
+        if (getItemViewType(position) == VIEW_TYPE_TYPING) {
+            return; // nothing to bind
+        }
 
         ChatMessage msg = getItem(position);
 
+        if (holder instanceof DateViewHolder) {
+            ((DateViewHolder) holder).bind(msg);
+            return;
+        }
         Log.d("ADAPTER", "position=" + position + " typing=" + msg.isTyping());
 
         if (holder instanceof TypingViewHolder) {
@@ -170,6 +204,11 @@ public class ChatMessageAdapter
             if (diff.containsKey("status")) {
                 msg = getItem(position);
 
+                if (holder instanceof DateViewHolder) {
+                    ((DateViewHolder) holder).bind(msg);
+                    return;
+                }
+
                 if (holder instanceof MeViewHolder) {
                     ((MeViewHolder) holder).updateStatusOnly(msg);
                 }
@@ -205,14 +244,16 @@ public class ChatMessageAdapter
                 @Override
                 public boolean areItemsTheSame(@NonNull ChatMessage a, @NonNull ChatMessage b) {
 
-                    /*
-                    if (a.getType().equals(String.valueOf(VIEW_TYPE_TYPING)) &&
-                            b.getType().equals(String.valueOf(VIEW_TYPE_TYPING))) {
-                        return true; // typing item is singleton per conversation
-                    }
-                    */
+                    Log.d("DIFF_ITEMS",
+                            "A: type=" + a.getItemType() + ", id=" + a.getLocalId() +
+                                    " | B: type=" + b.getItemType() + ", id=" + b.getLocalId()+
+                                    " " + (a.getItemType() == b.getItemType()) + " " +
+                                    Objects.equals(a.getLocalId(), b.getLocalId())
+                    );
 
-                    return Objects.equals(a.getLocalId(), b.getLocalId());
+                    return a.getItemType() == b.getItemType()
+                            && Objects.equals(a.getLocalId(), b.getLocalId());
+
                 }
 
                 /*
@@ -270,7 +311,7 @@ public class ChatMessageAdapter
             dot3 = itemView.findViewById(R.id.dot3);
         }
     }
-    /////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
     static class MeViewHolder extends RecyclerView.ViewHolder {
         TextView    message, time;
         ImageView   imagePhoto, statusIcon;
@@ -415,12 +456,18 @@ public class ChatMessageAdapter
 
             if (isoTime == null || isoTime.isEmpty()) return "";
 
-            if(isoTime.equals("now")) return "999";
+            Instant instant;
 
-            // Parse ISO UTC time
-            Instant instant = Instant.parse(isoTime);
+            try {
+                // Handle invalid "now" or bad formats
+                instant = Instant.parse(isoTime);
+            } catch (Exception e) {
+                Log.e("TIME", "Invalid time format: " + isoTime);
 
-            // Convert to user's local timezone
+                // fallback → current time
+                instant = Instant.now();
+            }
+
             ZonedDateTime messageTime =
                     instant.atZone(ZoneId.systemDefault());
 
@@ -430,25 +477,21 @@ public class ChatMessageAdapter
             LocalDate messageDate = messageTime.toLocalDate();
             LocalDate today = now.toLocalDate();
 
-            // 1️⃣ Today → show HH:mm
             if (messageDate.equals(today)) {
                 return messageTime.format(
                         DateTimeFormatter.ofPattern("HH:mm"));
             }
 
-            // 2️⃣ Yesterday
             if (messageDate.equals(today.minusDays(1))) {
                 return "Yesterday " +
                         messageTime.format(DateTimeFormatter.ofPattern("HH:mm"));
             }
 
-            // 3️⃣ Same week → show day name
             if (messageDate.isAfter(today.minusDays(7))) {
                 return messageTime.format(
                         DateTimeFormatter.ofPattern("EEEE HH:mm", Locale.getDefault()));
             }
 
-            // 4️⃣ Older → show date
             return messageTime.format(
                     DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
@@ -509,7 +552,7 @@ public class ChatMessageAdapter
             //statusIcon = itemView.findViewById(R.id.iv_status);
         }
 
-    void bind(ChatMessage msg) {
+        void bind(ChatMessage msg) {
         /*
         switch (msg.getStatus()) {
             case "sending": //"pending":
@@ -643,6 +686,32 @@ public class ChatMessageAdapter
                 break;
         }
     }
-
   }
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  class DateViewHolder extends RecyclerView.ViewHolder {
+      TextView dateText;
+
+      DateViewHolder(View itemView) {
+          super(itemView);
+          dateText = itemView.findViewById(R.id.dateText);
+      }
+
+      void bind(ChatMessage msg) {
+
+          Log.d("BIND", "binding header: " + msg.getDisplayText());
+
+          itemView.setVisibility(View.VISIBLE);
+          itemView.setMinimumHeight(100);
+          dateText.setHeight(100);
+          itemView.post(() -> {
+              Log.d("BIND", "POST height=" + itemView.getHeight());
+          });
+          dateText.setVisibility(View.VISIBLE);
+
+          dateText.setText(msg.getDisplayText());
+
+          Log.d("BIND", "itemView height=" + itemView.getHeight());
+      }
+  }
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 }

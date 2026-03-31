@@ -83,9 +83,6 @@ public class ChatBoxUsers extends Fragment {
         userRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         userRecyclerView.setAdapter(adapter);
 
-        vm = new ViewModelProvider(requireActivity())
-                .get(ChatSharedViewModel.class);
-
         adapter.setOnUserClickListener(user -> {
             vm.selectUser(user);
 
@@ -96,6 +93,9 @@ public class ChatBoxUsers extends Fragment {
 
             //sharedViewModel.resetUnreadCounter(user.chatId);
         });
+
+        vm = new ViewModelProvider(requireActivity())
+                .get(ChatSharedViewModel.class);
 
         vm.getUsers().observe(
                 getViewLifecycleOwner(),
