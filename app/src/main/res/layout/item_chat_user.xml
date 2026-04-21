@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -11,7 +10,6 @@
         android:layout_width="75dp"
         android:layout_height="75dp">
 
-        <!-- Avatar Image -->
         <ImageView
             android:id="@+id/image_profile"
             android:layout_width="match_parent"
@@ -19,7 +17,6 @@
             android:scaleType="centerCrop"
             android:src="@drawable/avatar"/>
 
-        <!-- 🔥 Unread Badge -->
         <TextView
             android:id="@+id/tv_unread_badge"
             android:layout_width="20dp"
@@ -34,7 +31,6 @@
             android:background="@drawable/bg_unread_badge"
             android:visibility="gone"/>
 
-        <!-- 🔥 status Badge -->
         <ImageView
             android:id="@+id/badge"
             android:layout_width="12dp"
@@ -52,6 +48,7 @@
         android:orientation="vertical"
         android:paddingStart="10dp">
 
+        <!-- Nickname -->
         <TextView
             android:id="@+id/nickname"
             android:layout_width="wrap_content"
@@ -60,6 +57,17 @@
             android:textStyle="bold"
             android:text="Nickname"/>
 
+        <!-- Status text (NEW) -->
+        <TextView
+            android:id="@+id/status_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@android:color/darker_gray"
+            android:text="Status here"
+            android:visibility="visible"/>
+
+        <!-- Connection info -->
         <TextView
             android:id="@+id/time_connection"
             android:layout_width="wrap_content"
@@ -73,6 +81,38 @@
             android:layout_height="wrap_content"
             android:textSize="14sp"
             android:text="Last seen"/>
+
+        <!-- 🔥 Action Buttons Row (NEW) -->
+        <LinearLayout
+            android:id="@+id/actions_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <Button
+                android:id="@+id/btn_accept"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Accept"
+                android:visibility="gone"/>
+
+            <Button
+                android:id="@+id/btn_reject"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reject"
+                android:layout_marginStart="6dp"
+                android:visibility="gone"/>
+
+            <Button
+                android:id="@+id/btn_message"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Message"
+                android:visibility="gone"/>
+
+        </LinearLayout>
 
     </LinearLayout>
 

@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -38,9 +39,29 @@ public class ChatUserAdapter
     private static final int TYPE_MESSAGE = 0;
     private static final int TYPE_TYPING  = 1;
 
+    public static final String STATUS_PENDING  = "pending";
+    public static final String STATUS_ACCEPTED = "accepted";
+
+    private List<ChatUser> users = new ArrayList<>();
+
+    public void updateList(List<ChatUser> newList) {
+        chatUsers = newList;
+        notifyDataSetChanged();
+    }
+
+     // onBindViewHolder uses 'users'
+
+
     // Click callback
     public interface OnUserClickListener {
         void onUserClicked(ChatUser user);
+        default void onAccept(ChatUser user) {
+            // optional
+        }
+
+        default void onReject(ChatUser user) {
+            // optional
+        }
     }
 
     private OnUserClickListener listener;
@@ -53,15 +74,17 @@ public class ChatUserAdapter
         this.listener = listener;
     }
 
-    // 🔥 Called by Fragment when backend data changes
     public void submitList(List<ChatUser> users) {
-        chatUsers = users != null ? users : new ArrayList<>();
+        chatUsers = users != null ? new ArrayList<>(users) : new ArrayList<>();
+        Log.d("ADAPTER", "submitList size = " + chatUsers.size());
         notifyDataSetChanged();
     }
 
     @Override
     public int getItemCount() {
-        return chatUsers.size();
+        int size = chatUsers != null ? chatUsers.size() : 0;
+        Log.d("ADAPTER", "getItemCount = " + size);
+        return size;
     }
 
     @NonNull
@@ -80,10 +103,17 @@ public class ChatUserAdapter
             @NonNull MyViewHolder holder,
             int position
     ) {
+        Log.d("ChatUserAdapter", "onBindViewHolder called");
+
         ChatUser user = chatUsers.get(position);
         int unread    = user.getNotSeenMessagesNumber();
 
-        switch(user.getStatus()) {
+        Log.d("ADAPTER", "Binding user: " + user.getUserId() +
+                " status=" + user.getOnlineStatus() +
+                " nickname=" + user.getNickname());
+
+
+        switch(user.getOnlineStatus()) {
 
             case UserStatus.ONLINE:
                 holder.badge.setBackgroundTintList(
@@ -100,6 +130,15 @@ public class ChatUserAdapter
                         ColorStateList.valueOf(Color.RED));
         }
 
+        if (STATUS_PENDING.equals(user.getRelationStatus())) {
+            showAcceptReject(holder, user);
+        }
+        else if (STATUS_ACCEPTED.equals(user.getRelationStatus())) {
+            showFriend(holder, user);
+        }
+        else {
+            showUnknown(holder, user);
+        }
 
         if (unread > 0) {
             holder.unreadBadge.setVisibility(View.VISIBLE);
@@ -119,6 +158,7 @@ public class ChatUserAdapter
         }
 
         holder.nickname.setText(user.getNickname());
+        holder.statusText.setText(user.getRelationStatus());
         holder.timeConnection.setText(
                 "Connection at: " + user.getConnectedAt()
         );
@@ -151,6 +191,58 @@ public class ChatUserAdapter
         });
     }
 
+    private void showUnknown(MyViewHolder holder, ChatUser user) {
+
+        holder.statusText.setVisibility(View.VISIBLE);
+        holder.statusText.setText("Unknown");
+
+        holder.acceptBtn.setVisibility(View.GONE);
+        holder.rejectBtn.setVisibility(View.GONE);
+
+        holder.messageBtn.setVisibility(View.VISIBLE); // optional
+
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onUserClicked(user);
+        });
+    }
+
+    private void showFriend(MyViewHolder holder, ChatUser user) {
+
+        holder.statusText.setVisibility(View.VISIBLE);
+        holder.statusText.setText("Friend");
+
+        holder.acceptBtn.setVisibility(View.GONE);
+        holder.rejectBtn.setVisibility(View.GONE);
+
+        //holder.messageBtn.setVisibility(View.VISIBLE);
+        //holder.messageBtn.setOnClickListener(v -> {
+        //    if (listener != null) listener.onUserClicked(user);
+        //});
+
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onUserClicked(user);
+        });
+    }
+
+    private void showAcceptReject(MyViewHolder holder, ChatUser user) {
+
+        holder.statusText.setVisibility(View.VISIBLE);
+        holder.statusText.setText("Pending request");
+
+        holder.acceptBtn.setVisibility(View.VISIBLE);
+        holder.rejectBtn.setVisibility(View.VISIBLE);
+
+        holder.messageBtn.setVisibility(View.GONE); // no chat yet (optional)
+
+        holder.acceptBtn.setOnClickListener(v -> {
+            if (listener != null) listener.onAccept(user);
+        });
+
+        holder.rejectBtn.setOnClickListener(v -> {
+            if (listener != null) listener.onReject(user);
+        });
+    }
+
     // ---------------- ViewHolder ----------------
 
     static class MyViewHolder extends RecyclerView.ViewHolder {
@@ -164,6 +256,12 @@ public class ChatUserAdapter
         TextView notSeenMessages;
         TextView unreadBadge;
 
+        TextView statusText;
+        Button acceptBtn;
+        Button rejectBtn;
+        Button messageBtn;
+
+
         MyViewHolder(@NonNull View itemView) {
             super(itemView);
             nickname            = itemView.findViewById(R.id.nickname);
@@ -174,6 +272,13 @@ public class ChatUserAdapter
             notSeenMessages     = itemView.findViewById(R.id.tv_not_seen_messages);
             unreadBadge         = itemView.findViewById(R.id.tv_unread_badge);
             badge               = itemView.findViewById(R.id.badge);
+
+            statusText          = itemView.findViewById(R.id.status_text);
+            acceptBtn           = itemView.findViewById(R.id.btn_accept);
+            rejectBtn           = itemView.findViewById(R.id.btn_reject);
+            messageBtn          = itemView.findViewById(R.id.btn_message);
+
+
 
         }
     }

@@ -55,10 +55,11 @@ public class ChatMessageAdapter
 
     private final String myUserId; // = SocketManager.getUserId();
 
+    //Constructor
     public ChatMessageAdapter(String myUserId) {
         super(DIFF_CALLBACK);
 
-        Log.d("ADAPTER", "constructor");
+        Log.d("ADAPTER", "ChatMessageAdapter constructor");
 
         this.myUserId = myUserId;
     }
@@ -313,7 +314,7 @@ public class ChatMessageAdapter
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////
     static class MeViewHolder extends RecyclerView.ViewHolder {
-        TextView    message, time;
+        TextView    message, time, statusText;
         ImageView   imagePhoto, statusIcon;
         //ProgressBar progressBar;
 
@@ -323,7 +324,11 @@ public class ChatMessageAdapter
             message     = itemView.findViewById(R.id.tv_message);
             time        = itemView.findViewById(R.id.tv_time);
             imagePhoto  = itemView.findViewById(R.id.image_photo);
-            statusIcon  = itemView.findViewById(R.id.iv_status);
+            statusIcon  = itemView.findViewById(R.id.iv_status);    //online/offline
+            statusText  = itemView.findViewById(R.id.status_text);  //pending, accept, reject friendship
+
+
+            //holder.statusText = itemView.findViewById(R.id.status_text);
 
             //progressBar = itemView.findViewById(R.id.image_upload_progress);
         }
@@ -441,6 +446,7 @@ public class ChatMessageAdapter
 
             // ----- TIME -----
             time.setVisibility(View.VISIBLE);
+
             // format time
             String time_ = formatMessageTime(msg.getSent_at()); //msg.getSent_at(); //);
             time.setText(time_);

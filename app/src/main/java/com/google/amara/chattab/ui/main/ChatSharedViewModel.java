@@ -3,14 +3,12 @@ package com.google.amara.chattab.ui.main;
 import android.app.Application;
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 
 import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
@@ -21,7 +19,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.Executors;
 
 
@@ -32,6 +29,7 @@ public class ChatSharedViewModel extends AndroidViewModel
 
 
     public ChatRepository repository;
+    //private LiveData<List<ChatUser>> users               = new MutableLiveData<>();;
     private LiveData<List<ChatUser>> users;
 
     private final MutableLiveData<ChatUser> selectedUser = new MutableLiveData<>();
@@ -41,6 +39,19 @@ public class ChatSharedViewModel extends AndroidViewModel
 
     private final MutableLiveData<Uri> draftImage        = new MutableLiveData<>();
     private final MutableLiveData<String> draftText      = new MutableLiveData<>("");
+    private MutableLiveData<String> scrollToMessage      = new MutableLiveData<>();
+    private String pendingUserId;
+    private String pendingMessageId;
+
+    public LiveData<String> getScrollToMessage() {
+        return scrollToMessage;
+    }
+
+    public void requestScrollToMessage(String messageId) {
+        scrollToMessage.setValue(messageId);
+    }
+
+
 
     public LiveData<Uri> getDraftImage() { return draftImage; }
     public LiveData<String> getDraftText() { return draftText; }
@@ -52,7 +63,12 @@ public class ChatSharedViewModel extends AndroidViewModel
         super(application);
         repository = ChatRepository.get(application);
         repository.setUserStatusListener(this);
+        users = repository.getFriendUsers();
     }
+
+    //public LiveData<List<ChatUser>> getUsers() {
+    //    return users;
+    //}
 
     public void clearDraft() {
         draftImage.setValue(null);
@@ -85,12 +101,12 @@ public class ChatSharedViewModel extends AndroidViewModel
         repository.joinConversation(user);
 
         // current conversation
-        MainApplication.currentChatUserId = user.getId();
+        MainApplication.currentChatUserId = user.getUserId();
 
         // mark conversation as seen
         JSONObject payload = new JSONObject();
         try {
-            payload.put("fromUserId", user.getId());
+            payload.put("fromUserId", user.getUserId());
         } catch (JSONException e) {}
 
         SocketManager.getSocket().emit("chat:mark_seen", payload);
@@ -98,8 +114,13 @@ public class ChatSharedViewModel extends AndroidViewModel
     }
 
     public LiveData<List<ChatUser>> getUsers() {
-        return repository.getUsers();
+        return repository.getFriendUsers();
     }
+
+    public LiveData<List<ChatUser>> getAllUsers() {
+        return repository.getAllFriendUsers();
+    }
+
 
     public void startChat() {
         repository.start();
@@ -149,7 +170,7 @@ public class ChatSharedViewModel extends AndroidViewModel
                 null,
                 localId,
                 myId,
-                user.getId(),
+                user.getUserId(),
                 text,           // message
                 imageUri != null ? imageUri.toString() : null,   // imageUrl (no image yet)
                 null,           // remoteUrl (no image yet)
@@ -177,12 +198,12 @@ public class ChatSharedViewModel extends AndroidViewModel
 
         // 🟢 2. If there is an image → upload first
         if (imageUri != null) {
-            repository.uploadImageAndSend(context, text, imageUri, user.getId(), localId);
+            repository.uploadImageAndSend(context, text, imageUri, user.getUserId(), localId);
             return;
         }
         // 🔵 TEXT MESSAGE FLOW
         if (SocketManager.getSocket() != null && SocketManager.getSocket().connected()) {
-            repository.sendTextMessage(text, user.getId(), localId);
+            repository.sendTextMessage(text, user.getUserId(), localId);
         }
     }
 
@@ -224,6 +245,40 @@ public class ChatSharedViewModel extends AndroidViewModel
     @Override
     public void onUserStatusChanged(ChatUser user) {
         updateSelectedUser(user);
+    }
+
+    public void selectUserById(String userId) {
+
+        List<ChatUser> users_ = getUsers().getValue(); //users.getValue();
+
+        if (users_ == null || users_.isEmpty()) {
+            pendingUserId = userId; // ✅ store it
+            return;
+        }
+
+        for (ChatUser user : users_) {
+            if (String.valueOf(user.getUserId()).equals(userId)) {
+                selectUser(user);
+                return;
+            }
+        }
+    }
+
+    //used in notification
+    public void loadUsers() {
+        repository.loadFriendUsersFromApi(); // ✅ delegate to repository
+    }
+
+    public String getPendingMessageId() {
+        return pendingMessageId;
+    }
+
+    public void clearPendingMessageId() {
+        pendingMessageId = null;
+    }
+
+    public void setPendingMessageId(String messageId) {
+        this.pendingMessageId = messageId;
     }
 }
 

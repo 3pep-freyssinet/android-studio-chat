@@ -1,122 +1,54 @@
 package com.google.amara.chattab;
 
-import static androidx.core.content.ContextCompat.getSystemService;
-
-import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
-
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.ActivityNotFoundException;
-import android.content.ContentResolver;
-import android.content.ContentUris;
-import android.content.ContentValues;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.database.Cursor;
-import android.database.DatabaseUtils;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Parcel;
-import android.os.ParcelFileDescriptor;
-import android.os.Parcelable;
-import android.provider.DocumentsContract;
-import android.provider.MediaStore;
-import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.text.format.DateUtils;
-import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
-import android.webkit.MimeTypeMap;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
-import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.LiveData;
-import androidx.recyclerview.widget.DefaultItemAnimator;
-import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.google.amara.chattab.helper.SupabaseStorageUploader;
-import com.google.amara.chattab.ui.main.ChatRepository;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
 import com.google.amara.chattab.ui.main.ChatViewModel;
-import com.google.amara.chattab.utils.TimeUtils;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.security.MessageDigest;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -143,6 +75,10 @@ public class ChatBoxMessage extends Fragment {
     private RecyclerView messageRecycler;
     private ImageView sendButton, attachButton, imageUpload, previewImage, btnRemoveImage;
     private EditText messageInput;
+    private TextView emptyView;
+    private LinearLayout pendingLayout, rejectedLayout;
+    private TextView pendingStatus, rejectedStatus;
+    
     private ActivityResultLauncher<Intent> imagePickerLauncher;
     private View typingContainer;
 
@@ -163,15 +99,12 @@ public class ChatBoxMessage extends Fragment {
         isTyping = false;
         SocketManager.getSocket().emit("typing:stop", buildTypingPayload());
     };
-
+   
 
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        sharedViewModel = new ViewModelProvider(requireActivity())
-                .get(ChatSharedViewModel.class);
 
         imagePickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -187,15 +120,17 @@ public class ChatBoxMessage extends Fragment {
                 new ViewModelProvider(requireActivity())
                         .get(ChatSharedViewModel.class);
 
-        chatViewModel = new ChatViewModel(requireActivity().getApplication());
+        chatViewModel = new ViewModelProvider(requireActivity())
+                .get(ChatViewModel.class);
 
+        Log.d("VM_CHECK", "VM instance = " + chatViewModel.hashCode());
     }
 
     private JSONObject buildTypingPayload() {
         JSONObject obj = new JSONObject();
-
+        String friendId = chatViewModel.getCurrentFriendId().getValue();
         try {
-            obj.put("to", MainApplication.friendId);
+            obj.put("to", friendId);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -234,7 +169,9 @@ public class ChatBoxMessage extends Fragment {
             Bundle savedInstanceState
     ) {
         View view       = inflater.inflate(R.layout.chat_box_message, container, false);
+
         messageRecycler = view.findViewById(R.id.recycler_messages);
+        emptyView       = view.findViewById(R.id.empty_view);
         sendButton      = view.findViewById(R.id.iv_send);
         imageUpload     = view.findViewById(R.id.iv_attach);
         messageInput    = view.findViewById(R.id.edt_message);
@@ -244,8 +181,10 @@ public class ChatBoxMessage extends Fragment {
 
         attachButton    = view.findViewById(R.id.iv_attach);
         //typingContainer = view.findViewById(R.id.typingContainer);
-
-
+        pendingLayout   = view.findViewById(R.id.pendingLayout);
+        rejectedLayout  = view.findViewById(R.id.rejectedLayout);
+        pendingStatus   = view.findViewById(R.id.tv_pending);
+        rejectedStatus  = view.findViewById(R.id.tv_rejected);
         return view;
     }
 
@@ -270,56 +209,67 @@ public class ChatBoxMessage extends Fragment {
             return insets;
         });
 
+        ///////////////////////////////
         //update 'header'
         sharedViewModel.getSelectedUser().observe(getViewLifecycleOwner(), selectedUser -> {
+
             if (selectedUser == null) return;
 
-            String connectedAt = TimeUtils.formatSmartTime(selectedUser.getConnectedAt());
-            String lastConnectedAt = TimeUtils.formatSmartTime(selectedUser.getLastConnectedAt());
+            String userId = selectedUser.getUserId();
+
+            //update 'statusText' : relationship
+            observeUser_(view, userId); // 🔥 delegate
+
+            //"2026-04-06 17:07:34.442457+00"
+            //String connectedAt        = TimeUtils.formatSmartTime(selectedUser.getConnectedAt());
+            //String lastConnectedAt    = TimeUtils.formatSmartTime(selectedUser.getLastConnectedAt());
 
             TextView headerName       = view.findViewById(R.id.header_name);
             TextView headerConnectedAt= view.findViewById(R.id.header_connected);
             TextView headerLastSeen   = view.findViewById(R.id.header_last_seen);
+            TextView statusText       = view.findViewById(R.id.status_text); //friendship status
             ImageView imageProfile    = view.findViewById(R.id.header_avatar);
-            View statusBadge          = view.findViewById(R.id.status_badge);
+            View statusBadge          = view.findViewById(R.id.status_badge);//online/offline
 
+            headerName.setText(selectedUser.getNickname());
+            //statusText.setText(selectedUser.getRelationStatus());
+            if (selectedUser.getImageProfile() != null && !selectedUser.getImageProfile().isEmpty()) {
+                Glide.with(requireActivity())
+                        .load(selectedUser.getImageProfile())
+                        .placeholder(R.drawable.avatar)
+                        .circleCrop()
+                        .into(imageProfile);
+            } else {
+                imageProfile.setImageResource(R.drawable.avatar);
+            }
 
-                headerName.setText(selectedUser.getNickname());
+            switch(selectedUser.getOnlineStatus()) {
 
-                if (selectedUser.getImageProfile() != null && !selectedUser.getImageProfile().isEmpty()) {
-                    Glide.with(requireActivity())
-                            .load(selectedUser.getImageProfile())
-                            .placeholder(R.drawable.avatar)
-                            .circleCrop()
-                            .into(imageProfile);
-                } else {
-                    imageProfile.setImageResource(R.drawable.avatar);
-                }
+                case UserStatus.ONLINE:
+                    statusBadge.setBackgroundTintList(ColorStateList.valueOf(Color.GREEN));
 
-                switch(selectedUser.getStatus()) {
+                    // 🔥 override text when online
+                    headerConnectedAt.setText("Connected: now");
+                    headerLastSeen.setText("Last seen: < 1 min");
+                    break;
 
-                    case UserStatus.ONLINE:
-                        statusBadge.setBackgroundTintList(ColorStateList.valueOf(Color.GREEN));
+                case UserStatus.AWAY:
+                    statusBadge.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(255,165,0)));
 
-                        // 🔥 override text when online
-                        headerConnectedAt.setText("Connected: now");
-                        headerLastSeen.setText("Last seen: < 1 min");
-                        break;
+                //headerConnectedAt.setText(getString(R.string.connected_at, connectedAt));
+                headerConnectedAt.setText(getString(R.string.connected_at, "999"));
+                headerLastSeen.setText("Away");
+                break;
 
-                    case UserStatus.AWAY:
-                        statusBadge.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(255,165,0)));
+                default: // OFFLINE
+                    statusBadge.setBackgroundTintList(ColorStateList.valueOf(Color.RED));
 
-                        headerConnectedAt.setText(getString(R.string.connected_at, connectedAt));
-                        headerLastSeen.setText("Away");
-                        break;
-
-                    default: // OFFLINE
-                        statusBadge.setBackgroundTintList(ColorStateList.valueOf(Color.RED));
-
-                        headerConnectedAt.setText(getString(R.string.connected_at, connectedAt));
-                        headerLastSeen.setText(getString(R.string.last_seen, lastConnectedAt));
-                        break;
-                }
+                    //headerConnectedAt.setText(getString(R.string.connected_at, connectedAt));
+                    headerConnectedAt.setText(getString(R.string.connected_at, "999"));
+                    //headerLastSeen.setText(getString(R.string.last_seen, lastConnectedAt));
+                    headerLastSeen.setText("888");
+                    break;
+        }
         });
         //end 'header' update
 
@@ -335,7 +285,7 @@ public class ChatBoxMessage extends Fragment {
         //'executor' is running on background thread
         Executors.newSingleThreadExecutor().execute(() -> {
 
-            String withUserId = MainApplication.friendId;
+            String withUserId = chatViewModel.getCurrentFriendId().getValue();
             String myUserId   = MainApplication.myId;
 
             boolean hasUnread = sharedViewModel.hasUnreadMessages(withUserId);
@@ -374,7 +324,100 @@ public class ChatBoxMessage extends Fragment {
         String myUserId = SocketManager.getUserId();
         adapter = new ChatMessageAdapter(myUserId);
 
-        chatViewModel.loadInitialMessages(MainApplication.myId, MainApplication.friendId);
+        chatViewModel.loadInitialMessages();
+
+        //When the user enter 'ChatBoxMessage'
+        String friendId = chatViewModel.getCurrentFriendId().getValue();
+
+        if (friendId != null) {
+            observeUser(friendId);
+        }
+
+
+        chatViewModel.getAcceptEvents().observe(getViewLifecycleOwner(), userId -> {
+
+            if (userId == null) return;
+
+            Snackbar.make(requireView(),
+                    "Your request has been accepted",
+                    Snackbar.LENGTH_LONG
+            ).show();
+
+        });
+
+
+        chatViewModel.getRejectEvents().observe(getViewLifecycleOwner(), userId -> {
+            Log.d("REJECT_EVENTS", "userId = " +userId);
+            if (userId == null) return;
+
+            String current = chatViewModel.getCurrentFriendId().getValue();
+
+            if (!userId.equals(current)) return;
+
+            /*
+            // 🔥 Inform user
+            Toast.makeText(getContext(),
+                    "Your request has been rejected",
+                    Toast.LENGTH_SHORT
+            ).show();
+            */
+
+            // 🔥 Navigate back
+            if (getActivity() instanceof TabChatActivity) {
+                ((TabChatActivity) getActivity()).openUsersTab();
+            }
+        });
+
+
+        //messages observer
+        chatViewModel.getCurrentFriendId()
+                .observe(getViewLifecycleOwner(), friendId_ -> {
+
+                    Log.d("MESSAGES", "friendId = " + friendId_);
+
+                    if (friendId_ == null) return;
+
+                    String myId = SocketManager.getUserId();
+
+                    chatViewModel.getMessages(myId, friendId_)
+                            .observe(getViewLifecycleOwner(), messages -> {
+
+                                Log.d("MESSAGES", "Messages = " + messages.size() + " friendId = " + friendId);
+                                adapter.submitList(messages);
+                                messageRecycler.post(() -> messageRecycler.scrollToPosition(adapter.getItemCount() - 1));
+                            });
+
+
+                });
+
+
+    /*
+    chatViewModel.getCurrentFriendId()
+            .observe(getViewLifecycleOwner(), friendId -> {
+
+            Log.d("MESSAGES", "friendId = " + friendId);
+
+            if (friendId == null) return;
+
+            String myId = SocketManager.getUserId();
+
+
+                chatViewModel.getUserById(friendId).observe(getViewLifecycleOwner(), user -> {
+
+                    if (user == null) return;
+
+                    if (user.isPending()) {
+                        showPendingUI();
+                    } else if (user.isAccepted()) {
+                        showChatUI();
+                    } else if (user.isRejected()) {
+                        showRejectedUI();
+                    }
+                });
+            });
+    */
+        //////////////
+
 
         /*
         chatViewModel.repo.getMessages().observe(getViewLifecycleOwner(), list -> {
@@ -382,7 +425,16 @@ public class ChatBoxMessage extends Fragment {
             int newSize = (list == null) ? 0 : list.size();
             int currentSize = adapter.getItemCount();
 
-            Log.d("UI", "newSize=" + newSize + ", currentSize=" + currentSize);
+            Log.d("MESSAGES", "newSize = " + newSize + ", adapter current size = " + currentSize);
+
+            if(!list.isEmpty()){
+                //Log.d("MESSAGES", "message = " + list.get(0).getMessage());
+                Log.d("MESSAGES", "serverId = " + list.get(0).getServerId());
+                for(int i = 0; i <= list.size() - 1; i++){
+                    Log.d("MESSAGES", "message = " + list.get(i).getMessage());
+                }
+            }
+
 
             // 🚫 Prevent flicker: ignore transient empty list
             if (newSize == 0 && currentSize > 0) {
@@ -402,6 +454,7 @@ public class ChatBoxMessage extends Fragment {
             }
         });
         */
+
 
 
         // In ChatBoxMessages Fragment
@@ -452,6 +505,7 @@ public class ChatBoxMessage extends Fragment {
         */
 
         //observer used in 'production' mode.
+        /*
         chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId)
                 .observe(getViewLifecycleOwner(), list -> {
 
@@ -469,8 +523,101 @@ public class ChatBoxMessage extends Fragment {
             // 3. Submit to adapter
             adapter.submitList(displayList);
         });
+        */
 
+        //sharedViewModel.getScrollToMessage().observe(getViewLifecycleOwner(), messageId -> {
+        //    if (messageId != null) {
+        //        scrollToMessage(messageId);
+        //    }
+        //});
 
+        /*
+        String friendId_ = chatViewModel.getCurrentFriendId().getValue();
+        String myId_     = SocketManager.getUserId();
+
+        Log.d("CHAT_BOX_MESSAGE", "myId=" + myId_ + ", friendId=" + friendId_);
+
+        chatViewModel.getCurrentFriendId().observe(getViewLifecycleOwner(), friendId -> {
+            Log.d("CHAT_BOX_MESSAGE", "Here 1");
+            if (friendId == null) return;
+            Log.d("CHAT_BOX_MESSAGE", "Here 2");
+            String myId = SocketManager.getUserId();
+
+            chatViewModel.getMessages(myId, friendId)
+                    .observe(getViewLifecycleOwner(), messages -> {
+
+                        if (messages == null) return;
+
+                        adapter.submitList(messages);
+                    });
+        });
+        */
+
+        /*
+        chatViewModel.messages
+                .observe(getViewLifecycleOwner(), messages -> {
+
+            if (messages == null || messages.isEmpty()){
+                Log.d("CHAT", "No messages yet");
+
+                // ✅ Show empty UI
+                emptyView.setVisibility(View.VISIBLE);
+                messageRecycler.setVisibility(View.GONE);
+                return;
+            }
+
+            emptyView.setVisibility(View.GONE);
+            messageRecycler.setVisibility(View.VISIBLE);
+
+            String pendingId = sharedViewModel.getPendingMessageId();
+
+            adapter.submitList(messages, () -> {   // 🔴 IMPORTANT: use callback
+
+                if (pendingId == null) return;
+
+                boolean found = false;
+
+                List<ChatMessage> displayList = adapter.getCurrentList(); // 🔴 use adapter list
+
+                for (int i = 0; i < displayList.size(); i++) {
+
+                    ChatMessage msg = displayList.get(i);
+
+                    if (msg.serverId != null &&
+                            String.valueOf(msg.serverId).equals(pendingId)) {
+
+                        found = true;
+
+                        Log.d("SCROLL", "✅ Found message at position " + i);
+
+                        messageRecycler.scrollToPosition(i);
+                        int finalI = i;
+                        messageRecycler.post(() -> {
+                            highlightMessage(finalI); // ✅ now view exists
+                        });
+
+                        sharedViewModel.clearPendingMessageId();
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    Log.d("SCROLL", "⏳ Waiting for message " + pendingId);
+                }
+
+            }); // 🔴 callback end
+        });
+        */
+        //observe selected user in tab 0.
+        chatViewModel.getSelectedUser().observe(getViewLifecycleOwner(), user -> {
+            if (user == null) return;
+
+            Log.d("CHAT", "Opening chat with: " + user.getNickname());
+
+            String myId__ = SocketManager.getUserId();
+
+            chatViewModel.loadMessagesBetweenMeAndOther(myId__, user.getUserId());
+        });
 
         /*
         chatViewModel.getMessages(MainApplication.myId, MainApplication.friendId)
@@ -544,7 +691,7 @@ public class ChatBoxMessage extends Fragment {
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
                 if (layoutManager != null && layoutManager.findFirstVisibleItemPosition() == 0) {
-                    chatViewModel.repo.loadMoreMessages(MainApplication.myId, MainApplication.friendId);
+                    chatViewModel.repo.loadMoreMessages();
                 }
             }
         });
@@ -639,12 +786,11 @@ public class ChatBoxMessage extends Fragment {
                     return;
                 }
 
-                sharedViewModel.repository.notifyTyping(MainApplication.friendId);
+                sharedViewModel.repository.notifyTyping();
             }
         });
 
         //send button
-
         sendButton.setOnClickListener(v -> {
             final String localId = UUID.randomUUID().toString();
 
@@ -669,8 +815,19 @@ public class ChatBoxMessage extends Fragment {
             //stop typing
             //⭐ ADD THIS BEFORE sending message
             //SocketManager.getSocket().emit("typing:stop", payload);
+            //String friendId = chatViewModel.getCurrentFriendId().getValue();
 
-            SocketManager.getSocket().emit("typing:stop", sharedViewModel.repository.createTypingPayload(MainApplication.friendId));
+            //Get 'friendId' and emit 'emit("typing:stop"'.
+            chatViewModel.getCurrentFriendId().observe(getViewLifecycleOwner(), friendId_ -> {
+                Log.d("CHAT_BOX_MESSAGE", "Here 3");
+                if (friendId_ == null) return;
+                Log.d("CHAT_BOX_MESSAGE", "Here 4");
+                String myId = SocketManager.getUserId();
+
+                SocketManager.getSocket().emit("typing:stop",
+                        sharedViewModel.repository.createTypingPayload(friendId_));
+
+            });
 
             sharedViewModel.sendMessage(localId, text, imageUri, requireContext());
 
@@ -688,6 +845,153 @@ public class ChatBoxMessage extends Fragment {
 
             imagePickerLauncher.launch(intent);
         });
+    }
+
+    private void observeUser_(View view, String userId) {
+
+        chatViewModel.getUserById(userId).observe(getViewLifecycleOwner(), user -> {
+
+            if (user == null) return;
+
+            TextView statusText = view.findViewById(R.id.status_text);
+
+            statusText.setText(user.getRelationStatus()); // 🔥 always fresh
+        });
+    }
+
+    private void observeUser(String friendId) {
+        chatViewModel.getUserById(friendId)
+                .observe(getViewLifecycleOwner(), user -> {
+
+                    if (user == null) {
+                        Log.d("CHAT", "User removed → close or reset UI");
+
+                        showUnknownUI();   // or close chat
+                        return;
+                    }
+
+                    if (user.isPending()) {
+                        showPendingUI();
+                    } else if (user.isAccepted()) {
+                        showChatUI();
+                    } else if (user.isRejected()) {
+                        showRejectedUI();
+                    }
+                });
+    }
+
+
+
+    private void showUnknownUI() {
+
+    }
+
+    private void showRejectedUI() {
+
+        pendingLayout.setVisibility(View.GONE);
+        rejectedLayout.setVisibility(View.VISIBLE);
+
+        messageRecycler.setVisibility(View.GONE);
+        messageInput.setVisibility(View.GONE);
+        sendButton.setVisibility(View.GONE);
+
+        rejectedStatus.setVisibility(View.VISIBLE);
+        rejectedStatus.setText("❌ Request rejected");
+    }
+
+    private void showChatUI() {
+
+        pendingLayout.setVisibility(View.GONE);
+        rejectedLayout.setVisibility(View.GONE);
+
+        messageRecycler.setVisibility(View.VISIBLE);
+        messageInput.setVisibility(View.VISIBLE);
+        sendButton.setVisibility(View.VISIBLE);
+
+        pendingStatus.setVisibility(View.GONE);
+    }
+
+    private void showPendingUI() {
+
+        pendingLayout.setVisibility(View.VISIBLE);
+        rejectedLayout.setVisibility(View.GONE);
+
+        messageRecycler.setVisibility(View.GONE);
+        messageInput.setVisibility(View.GONE);
+        sendButton.setVisibility(View.GONE);
+
+        pendingStatus.setVisibility(View.VISIBLE);
+        pendingStatus.setText("⏳ Waiting for response...");
+    }
+
+    
+    private void scrollToMessage(String messageId) {
+
+        List<ChatMessage> messages = adapter.getCurrentList();
+
+        if (messages == null || messages.isEmpty()) return;
+
+        for (int i = 0; i < messages.size(); i++) {
+
+            ChatMessage msg = messages.get(i);
+
+            Log.d("SCROLL", "msg.serverId = " + msg.serverId + " messageId = " + messageId );
+
+            if (msg.serverId != null &&
+                    String.valueOf(msg.serverId).equals(messageId)) {
+
+                Log.d("SCROLL", "scrolling" );
+
+                messageRecycler.scrollToPosition(i);
+                highlightMessage(i);
+                break;
+            }
+        }
+    }
+
+    private void highlightMessage(int position) {
+
+        RecyclerView.ViewHolder holder =
+                messageRecycler.findViewHolderForAdapterPosition(position);
+
+        if (holder == null) return;
+
+        View itemView = holder.itemView;
+
+    int highlightColor = Color.YELLOW;
+    int normalColor = Color.TRANSPARENT;
+
+    Handler handler = new Handler(Looper.getMainLooper());
+
+    int duration = 5000; // total time (5 sec)
+    int interval = 300;  // blink speed
+
+    Runnable blinkRunnable = new Runnable() {
+
+            long startTime = System.currentTimeMillis();
+            boolean visible = true;
+
+            @Override
+            public void run() {
+
+                long elapsed = System.currentTimeMillis() - startTime;
+
+                if (elapsed > duration) {
+                    itemView.setBackgroundColor(normalColor);
+                    return;
+                }
+
+                itemView.setBackgroundColor(
+                        visible ? highlightColor : normalColor
+                );
+
+                visible = !visible;
+
+                handler.postDelayed(this, interval);
+            }
+        };
+
+    handler.post(blinkRunnable);
     }
 
     private Collection<? extends ChatMessage> generateFakeMessages() {

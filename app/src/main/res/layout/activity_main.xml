@@ -40,6 +40,9 @@
             app:tabMaxWidth="0dp"
             app:tabGravity="fill"
             app:tabMode="fixed"
+            app:tabTextColor="@color/tab_unselected"
+            app:tabSelectedTextColor="@color/tab_selected"
+            app:tabIndicatorColor="@color/tab_selected"
             android:background="?attr/colorPrimary" />
     </com.google.android.material.appbar.AppBarLayout>
 

@@ -3,12 +3,17 @@ package com.google.amara.chattab;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
+
 import java.io.Serializable;
 
 /**
  * Created by
  */
-
+@Entity(tableName = "users")
 public class ChatUser implements Serializable,
                                  Parcelable {
 
@@ -19,36 +24,56 @@ public class ChatUser implements Serializable,
     public static final int userBlacklist   = 3;    //black  bit = 011
     //public static final int userAbsent    = 4;    //       bit = 100
 
+    @PrimaryKey
+    @NonNull
+    public String userId;
+
+    public boolean isFriend;  // optional but VERY useful
+    public boolean isPending; // optional but VERY useful
+    private boolean isRejected;
+
     public String nickname;             // nickname
-    public String chatId;               // id in the chat
+    //public String chatId;               // id in the chat
     public String imageProfile;         //image encoded base 64 string.
     //public boolean firstTimeAccessDatabase;//limit access to db one time only
-    public int    status;               //0=gone, 1=connected,  2=standby, 3=blacklist
+
+    @ColumnInfo(name = "status")
+    //public int  status;          // no longer used. 0=gone, 1=connected,  2=standby, 3=blacklist
+    public int         onlineStatus;    // from chat.users: online, offline, busy
+    public String      relationStatus;  // from user_friends: pending, accepted, rejected
+
     public int    notSeenMessagesNumber;//number of not seen messages
     public String connectedAt;          //current connection time
     public String lastConnectedAt;      //last connection time
     public String disconnectedAt;       //disccnnection time
     public String blacklistAuthor;      // the author of blacklist
 
+
     public ChatUser() {}
 
-    public ChatUser(String nickname,
-                    String chatId,
+    public ChatUser(@NonNull String userId,
+                    String nickname,
+                    //String chatId,
                     //String imageprofile,
                     //boolean firstTimeAccessDatabase,
-                    int status,
+                    //int status,
+                    int onlineStatus,
+                    String relationStatus,
                     int notSeenMessagesNumber
                     //String connectedAt,
                     //String disconnectedAt,
                     //String lastConnectedAt,
                     //String blacklistAuthor
     ) {
+        this.userId   = userId;
         this.nickname = nickname;
         //this.imageProfile   = imageprofile;
 
-        this.chatId         = chatId;
+        //this.chatId         = chatId;
         //this.firstTimeAccessDatabase = firstTimeAccessDatabase;
-        this.status = status;
+        //this.status = status;
+        this.onlineStatus   = onlineStatus;
+        this.relationStatus = relationStatus;
         this.notSeenMessagesNumber  = notSeenMessagesNumber;
         //this.connectedAt            = connectedAt;
         //this.disconnectedAt         = disconnectedAt;
@@ -66,12 +91,20 @@ public class ChatUser implements Serializable,
     }
 
     //id
-    public String getChatId() {
-        return chatId;
+    //public String getChatId() {
+    //    return chatId;
+    //}
+
+    //public void setChatId(String chatId) {
+    //    this.chatId = chatId;
+    //}
+
+    public String getUserId() {
+        return userId;
     }
 
-    public void setChatId(String chatId) {
-        this.chatId = chatId;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     //image profile
@@ -93,13 +126,20 @@ public class ChatUser implements Serializable,
         this.firstTimeAccessDatabase = firstTimeAccessDatabase;
     }
     */
-    //Status
-    public int getStatus() {
-        return status;
+
+
+    public int getOnlineStatus() {
+        return onlineStatus;
+    }
+    public void setOnlineStatus(int onlineStatus){
+        this.onlineStatus = onlineStatus;
     }
 
-    public void setStatus(int status) {
-        this.status = status;
+    public String getRelationStatus() {
+        return relationStatus;
+    }
+    public void setRelationStatus(String relationStatus){
+        this.relationStatus = relationStatus;
     }
 
     //Number of not seen messages
@@ -149,13 +189,34 @@ public class ChatUser implements Serializable,
         this.blacklistAuthor = blacklistAuthor;
     }
 
+    public boolean isPending() {
+        return isPending;
+    }
+    public void setPending(boolean pending) {
+        isPending = pending;
+    }
+
+
+    public boolean isRejected() {return isRejected; }
+    public void setRejected(boolean rejected) {
+        isRejected = rejected;
+    }
+
+    public boolean isFriend() {
+        return isFriend;
+    }
+
+    public void setFriend(boolean friend) {
+        isFriend = friend;
+    }
+
     //Parcelable methods
     public ChatUser(Parcel in) {
         this.nickname                = in.readString();
         this.imageProfile            = in.readString();
-        this.chatId                  = in.readString();
+        this.userId                  = in.readString();
         //this.firstTimeAccessDatabase = in.readByte() != 0;; //in.readBoolean();
-        this.status                  = in.readInt();
+        //this.status                  = in.readInt();
         this.notSeenMessagesNumber   = in.readInt();
         this.connectedAt             = in.readString();
         this.disconnectedAt          = in.readString();
@@ -167,9 +228,9 @@ public class ChatUser implements Serializable,
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(nickname);
         dest.writeString(imageProfile);
-        dest.writeString(chatId);
+        dest.writeString(userId);
         //dest.writeByte((byte) (firstTimeAccessDatabase ? 1 : 0));
-        dest.writeInt(status);
+        //dest.writeInt(status);
         dest.writeInt(notSeenMessagesNumber);
         dest.writeString(connectedAt);
         dest.writeString(disconnectedAt);
@@ -194,7 +255,7 @@ public class ChatUser implements Serializable,
         }
     };
 
-    public String getId() {
-        return chatId;
+    public boolean isAccepted() {
+        return relationStatus.equals("accepted");
     }
 }

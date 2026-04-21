@@ -66,21 +66,31 @@ public final class SocketManager {
             socket = IO.socket(url, options);
 
             socket.on(Socket.EVENT_CONNECT, args -> {
-                Log.d("Socket", "✅ CONNECTED: " + socket.id());
+                Log.d("SOCKET", "✅ CONNECTED: " + socket.id());
+
+                String pending = MainApplication.pendingChatUserId;
+                if (pending != null) {
+                    Log.d("SOCKET", "Sending delayed chat:open → " + pending);
+
+                    socket.emit("chat:open", pending);
+
+                    MainApplication.pendingChatUserId = null;
+                }
 
                 socket.emit("chat:get_users_with_unread");
                 socket.emit("user_status_change", "online");
+
 
                 //heartbeatHandler.postDelayed(heartbeatRunnable, 20000);
             });
 
             socket.on(Socket.EVENT_CONNECT_ERROR, args ->
-                    Log.e("Socket", "🚨 CONNECT ERROR", new Throwable(args[0].toString()))
+                    Log.e("SOCKET", "🚨 CONNECT ERROR", new Throwable(args[0].toString()))
             );
-            Log.d("Socket", "❌ DISCONNECTED");
+            //Log.d("Socket", "❌ DISCONNECTED");
 
             socket.on(Socket.EVENT_DISCONNECT, args -> {
-                Log.d("Socket", "❌ DISCONNECTED");
+                Log.d("SOCKET", "❌ DISCONNECTED");
                 //heartbeatHandler.removeCallbacks(heartbeatRunnable);
             });
 

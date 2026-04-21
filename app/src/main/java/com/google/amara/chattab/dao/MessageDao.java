@@ -150,4 +150,10 @@ public interface MessageDao {
             "(id_from = :friendId AND id_to = :myId)")
     int getConversationCount(String myId, String friendId);
 
+
+    @Query("SELECT * FROM messages WHERE " +
+            "(id_from = :me AND id_to = :other) OR " +
+            "(id_from = :other AND id_to = :me) " +
+            "ORDER BY sent_at ASC")
+    LiveData<List<ChatMessage>> getMessagesBetween(String me, String other);
 }

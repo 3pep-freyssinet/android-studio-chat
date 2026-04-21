@@ -19,6 +19,13 @@ import androidx.viewpager2.widget.ViewPager2;
 import io.socket.client.Ack;
 import io.socket.emitter.Emitter;
 import io.socket.client.Socket;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -68,6 +75,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
+import com.google.amara.chattab.ui.main.ChatViewModel;
 import com.google.amara.chattab.upload.FileUploadManager;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
@@ -122,6 +130,17 @@ public class TabChatActivity extends AppCompatActivity {
     private ChatSharedViewModel sharedViewModel;
     public static String Nickname = "Me";
     private ChatSharedViewModel vm;
+    private String pendingMessageId;
+    private ChatViewModel chatViewModel;
+
+
+
+    // 👈 for notification
+    public interface LoadUserFriendsFromBackendCallback{
+        void onSuccess(List<ChatUser> users);
+        void onFailure(Exception exception);
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -130,11 +149,35 @@ public class TabChatActivity extends AppCompatActivity {
 
         TabLayout tabLayout = findViewById(R.id.tabs);
         viewPager = findViewById(R.id.view_pager);
-        
+
         vm = new ViewModelProvider(this)
                 .get(ChatSharedViewModel.class);
-        
+
+        chatViewModel = new ViewModelProvider(this)
+                .get(ChatViewModel.class);
+
+        //load user friends from backend. The userId is in jwt.
+        vm.loadUsers();
+
+        //observe the selected user
+        vm.getSelectedUser().observe(this, user -> {
+            if (user != null && pendingMessageId != null) {
+                vm.requestScrollToMessage(pendingMessageId);
+                pendingMessageId = null;
+            }
+        });
+
+        //'TabChatActivity' is called from 'MainActivity' and when the notification is clicked.
+        // Then we do a check. I the getIntent contains 'senderId' as an extra, we are coming from a notification.
+
+        Intent intent = getIntent();
+        boolean isFromNotification = intent != null && intent.hasExtra("senderId");
+        int initialTab = isFromNotification ? 1 : 0;
+
         viewPager.setAdapter(new ChatPagerAdapter(this));
+
+        // 👇 force Tab 1 BEFORE mediator
+        viewPager.setCurrentItem(0, false);
 
         new TabLayoutMediator(tabLayout, viewPager,
                 (tab, position) -> {
@@ -142,7 +185,15 @@ public class TabChatActivity extends AppCompatActivity {
                 }
         ).attach();
 
+        if (isFromNotification) {
+            String senderId = intent.getStringExtra("senderId");
+            String messageId = intent.getStringExtra("messageId");
+            handleNotificationNavigation(senderId, messageId );
+        }
 
+
+
+        //load the user friends
 
         // 🔥 THIS IS THE AUTO-SWITCH LOGIC
 
@@ -158,8 +209,78 @@ public class TabChatActivity extends AppCompatActivity {
         */
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        Log.d("LIFECYCLE", "onResume");
+
+
+        String friendId = chatViewModel.getCurrentFriendId().getValue();
+
+        MainApplication.currentChatUserId_ = friendId;
+
+        Socket socket = SocketManager.getSocket();
+
+        if (socket != null) {
+
+            if (socket.connected()) {
+                socket.emit("chat:open", friendId);
+            } else {
+                MainApplication.pendingChatUserId = friendId;
+            }
+        }
+
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.d("LIFECYCLE", "onPause");
+
+
+        MainApplication.currentChatUserId_ = null;
+
+        Socket socket = SocketManager.getSocket();
+        if (socket != null && socket.connected()) {
+            //socket.emit("chat:close");
+        }
+
+    }
+
+    private void handleNotificationNavigation(String senderId, String messageId) {
+
+        // 1. Switch to chat tab
+        viewPager.setCurrentItem(1, true);
+        //pendingMessageId = messageId;
+        vm.setPendingMessageId(messageId); //✅
+
+        // 2. Tell ViewModel which user to open
+        vm.selectUserById(senderId); // 👈 we'll implement this
+
+        // 3. 🔥 force refresh after selection
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            //chatViewModel.refreshMessages();
+        }, 500);
+    }
+
     public void openChatTab() {
         viewPager.setCurrentItem(1, true); // 🔥 Tab 1
+    }
+
+    public void openUsersTab() {
+        viewPager.setCurrentItem(0, true); // 🔥 Tab 0
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+
+        if (intent != null && intent.hasExtra("senderId")) {
+            String senderId = intent.getStringExtra("senderId");
+            handleNotificationNavigation(senderId, pendingMessageId);
+        }
     }
 }
 

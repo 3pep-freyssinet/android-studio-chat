@@ -1,6 +1,6 @@
 package com.google.amara.chattab.ui.main;
 
-import static com.google.amara.chattab.MainApplication.friendId;
+//import static com.google.amara.chattab.MainApplication.friendId;
 
 import android.app.Application;
 import android.content.Context;
@@ -19,13 +19,14 @@ import com.google.amara.chattab.MainApplication;
 import com.google.amara.chattab.SocketManager;
 import com.google.amara.chattab.dao.AppDatabase;
 import com.google.amara.chattab.dao.MessageDao;
+import com.google.amara.chattab.dao.UserDao;
 import com.google.amara.chattab.helper.SupabaseStorageUploader;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.HttpCookie;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +37,15 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 
 import io.socket.client.Socket;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 /*
   public static synchronized ChatRepository get() {
       if (instance == null) {
@@ -53,14 +63,421 @@ public class ChatRepository {
 
     MediatorLiveData<List<ChatUser>> usersWithUnread          = new MediatorLiveData<>();
 
-    private final MutableLiveData<List<ChatUser>> users       = new MutableLiveData<>();
+    //friend users
+    private final MutableLiveData<List<ChatUser>> friendUsers = new MutableLiveData<>();
 
-    //private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
+    //currentFriendId
+    private final MutableLiveData<String> currentFriendId     = new MutableLiveData<>();
 
-    private final MediatorLiveData<List<ChatMessage>> messages = new MediatorLiveData<>();
 
-    private final MutableLiveData<Boolean> typing              = new MutableLiveData<>(false);
+    //all users
+    private final MutableLiveData<List<ChatUser>> allUsers    = new MutableLiveData<>();
+    private final MutableLiveData<List<ChatMessage>> messages = new MutableLiveData<>(new ArrayList<>());
+
+    //private final MediatorLiveData<List<ChatMessage>> messages = new MediatorLiveData<>();
+
+    private final MutableLiveData<Boolean> typing                = new MutableLiveData<>(false);
     private final MutableLiveData<ChatUser> selectedUserLiveData = new MutableLiveData<>();
+
+    private final MutableLiveData<String> rejectEvents        = new MutableLiveData<>();
+    private final MutableLiveData<String> acceptEvents        = new MutableLiveData<>();
+
+    public LiveData<String> getAcceptEvents() {
+        return acceptEvents;
+    }
+    public LiveData<String> getRejectEvents() { return rejectEvents;
+    }
+
+    public void fetchMessagesFromApi(String myId, String friendId) {
+        // Build the request body with login credentials
+        RequestBody requestBody = new FormBody.Builder()
+                .add("myId", myId)
+                .add("friendId", friendId)
+                .build();
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/fetch-messages")
+                .addHeader("Authorization", "Bearer " + MainApplication.JWT_TOKEN)
+                .post(requestBody) //new FormBody.Builder().build())
+                .build();
+        OkHttpClient okHttpClient     = new OkHttpClient();//default.
+        okHttpClient.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+
+                JSONArray array = null;
+                try {
+                    array = new JSONArray(response.body().string());
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+
+                List<ChatMessage> messagesList = new ArrayList<>();
+
+
+                messages.postValue(messagesList); // 🔥 KEY LINE
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    //send request friendship to backend.
+    public void sendFriendRequest(String fromUserId, String toUserId) {
+
+        //default client
+        OkHttpClient client = new OkHttpClient();
+
+        JSONObject json = new JSONObject();
+        try {
+            json.put("fromUserId", Integer.parseInt(fromUserId));
+            json.put("toUserId", Integer.parseInt(toUserId));
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        RequestBody body = RequestBody.create(
+                json.toString(),
+                MediaType.parse("application/json; charset=utf-8")
+        );
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/friend-request")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e("API", "❌ Friend request failed", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+
+                String res = response.body().string();
+
+                Log.d("API", "✅ Friend request response: " + res);
+
+                if (!response.isSuccessful()) {
+                    Log.e("API", "❌ Error: " + response.code());
+                    return;
+                }
+
+                // optional: parse response
+            }
+        });
+    }
+
+
+    //load friend-users.
+    public void loadFriendUsersFromApi() {
+        friendUsers.postValue(new ArrayList<>()); // ✅ clear old value first
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/load-user-friends")
+                .addHeader("Authorization", "Bearer " + MainApplication.JWT_TOKEN)
+                .post(new FormBody.Builder().build())
+                .build();
+        OkHttpClient okHttpClient     = new OkHttpClient();//default.
+        okHttpClient.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+
+                JSONArray array;
+                try {
+                    array = new JSONArray(response.body().string());
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+
+                List<ChatUser> usersList = new ArrayList<>();
+
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = null;
+                    try {
+                        obj = array.getJSONObject(i);
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    String onRelationStatus = obj.isNull("relation_status")?
+                            "none" : obj.optString("relation_status");
+
+                    ChatUser user = null;
+                    try {
+                        user = new ChatUser(
+                                String.valueOf(obj.getInt("id")),
+                                obj.getString("nickname"),
+                                obj.getInt("online_status"),
+                                onRelationStatus,
+                                999 //dummy
+                        );
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    usersList.add(user);
+                }
+                friendUsers.postValue(new ArrayList<>(usersList));
+                Log.d("DEBUG", "List hash = " + friendUsers.hashCode());
+
+                //users.postValue(usersList); // 🔥 KEY LINE
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public void fetchMessages(String myId, String friendId) {
+        fetchMessagesFromApi(myId, friendId);
+    }
+
+    public void fetchAllUsers() {
+        loadAllUsersFromApi();
+    }
+
+
+    public void loadPendingRequests(String myId) {
+
+        OkHttpClient client = new OkHttpClient();
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/friends-pending?userId=" + myId)
+                .get()
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e("API", "❌ Pending request failed", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+
+                String res = response.body().string();
+
+                try {
+                    JSONArray array = new JSONArray(res);
+
+                    List<ChatUser> pendingUsers = new ArrayList<>();
+
+                    for (int i = 0; i < array.length(); i++) {
+
+                        JSONObject obj = array.getJSONObject(i);
+
+                        String onRelationStatus = obj.isNull("relation_status")?
+                                "none" : obj.optString("relation_status");
+
+                        ChatUser user = new ChatUser(
+                                String.valueOf(obj.getInt("id")),
+                                obj.getString("nickname"),
+                                obj.getInt("online_status"),
+                                onRelationStatus,
+                                999 //dummy
+
+                        );
+
+                        user.setRelationStatus("pending"); // ⭐ IMPORTANT
+
+                        pendingUsers.add(user);
+                    }
+
+                    // 👉 store locally
+                    insertPendingUsers(pendingUsers);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    private void insertPendingUsers(List<ChatUser> users) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            userDao.insertAll(users);
+        });
+    }
+
+    private void loadAllUsersFromApi() {
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/load-all-users")
+                .addHeader("Authorization", "Bearer " + MainApplication.JWT_TOKEN)
+                .post(new FormBody.Builder().build())
+                .build();
+        OkHttpClient okHttpClient     = new OkHttpClient();//default.
+        okHttpClient.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+
+                JSONArray array = null;
+                try {
+                    array = new JSONArray(response.body().string());
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+
+                List<ChatUser> allUsersList = new ArrayList<>();
+
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = null;
+                    try {
+                        obj = array.getJSONObject(i);
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    String onRelationStatus = obj.isNull("relation_status")?
+                            "none" : obj.optString("relation_status");
+
+                    ChatUser user = new ChatUser(
+                            obj.optString("id"),
+                            obj.optString("nickname"),
+                            obj.optInt("online_status"),
+                            onRelationStatus,
+
+
+                            99 //obj.optInt("friend_id") // ✅ temporary chatId
+                    );
+
+                    allUsersList.add(user);
+                }
+
+                allUsers.postValue(allUsersList); // 🔥 KEY LINE
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public LiveData<List<ChatUser>> getAllUsers() {
+        return allUsers;
+    }
+
+    public LiveData<List<ChatUser>> getAllFriendUsers() {
+        return userDao.getFriendUsers();
+    }
+
+
+    public void addFriend(ChatUser user) {
+        List<ChatUser> current = friendUsers.getValue();
+
+        if (current == null) current = new ArrayList<>();
+
+        for (ChatUser u : current) {
+            if (u.getUserId().equals(user.getUserId())) {
+                return; // already exists
+            }
+        }
+
+        current.add(user);
+        friendUsers.setValue(current);
+    }
+
+    public void acceptFriend(String myId, String friendId) {
+
+        //default client
+        OkHttpClient client = new OkHttpClient();
+
+        JSONObject json = new JSONObject();
+        try {
+            json.put("fromUserId", Integer.parseInt(friendId)); // Fanny
+            json.put("toUserId", Integer.parseInt(myId));       // Alice
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        RequestBody body = RequestBody.create(
+                json.toString(),
+                MediaType.parse("application/json; charset=utf-8")
+        );
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/friend-accept")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e("API", "❌ Accept failed", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+
+                Log.d("API", "✅ Friend accepted");
+
+                // 🔥 Update local DB
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    userDao.updateRelationStatus(friendId, "accepted");
+                });
+            }
+        });
+    }
+//
+public void rejectFriend(String myId, String friendId) {
+
+    OkHttpClient client = new OkHttpClient();
+
+    JSONObject json = new JSONObject();
+    try {
+        json.put("fromUserId", Integer.parseInt(myId));     // Alice
+        json.put("toUserId", Integer.parseInt(friendId));   // Fanny
+    } catch (JSONException e) {
+        e.printStackTrace();
+        return;
+    }
+
+    RequestBody body = RequestBody.create(
+            json.toString(),
+            MediaType.parse("application/json; charset=utf-8")
+    );
+
+    Request request = new Request.Builder()
+            .url("https://android-chat-server.onrender.com/users/friend-reject")
+            .post(body)
+            .build();
+
+    client.newCall(request).enqueue(new Callback() {
+
+        @Override
+        public void onFailure(Call call, IOException e) {
+            Log.e("API", "❌ Reject failed", e);
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) throws IOException {
+
+            Log.d("API", "🚫 Friend rejected");
+
+            // 🔥 Remove locally
+            Executors.newSingleThreadExecutor().execute(() -> {
+                userDao.deleteById(friendId);
+                // optional:
+                // messageDao.deleteConversation(myId, friendId);
+            });
+        }
+    });
+}
 
     public interface UserStatusListener {
         void onUserStatusChanged(ChatUser user);
@@ -95,9 +512,10 @@ public class ChatRepository {
     private Runnable typingTimeout;
     private final Set<String> onlineUsersSnapshot = new HashSet<>();
 
-    private boolean listening = false;
+    private boolean   listening = false;
     public MessageDao messageDao;
-    private Context appContext;
+    public UserDao    userDao;
+    private Context   appContext;
     private final String VIEW_TYPE_TYPING = "3";
     private long lastTypingSentAt = 0;
     private volatile long lastUserInputAt = 0;
@@ -117,9 +535,13 @@ public class ChatRepository {
 
     //constructor
     private ChatRepository(Context context) {
+
+        Log.d("REPO", "Repository instance = " + this);
+
         appContext = context;
         AppDatabase db = AppDatabase.getInstance(context);
         messageDao     = db.messageDao();
+        userDao        = db.userDao();
         socket         = SocketManager.getSocket();
 
         attachSocketListeners();
@@ -178,7 +600,9 @@ public class ChatRepository {
 
 
 
-    public void notifyTyping(String toUserId) {
+    public void notifyTyping() {
+
+        String toUserId = currentFriendId.getValue();
 
         if (!isTyping) {
             isTyping = true;
@@ -337,8 +761,8 @@ public class ChatRepository {
         return instance;
     }
 
-    public LiveData<List<ChatUser>> getUsers() {
-        return users;
+    public LiveData<List<ChatUser>> getFriendUsers() {
+        return userDao.getFriendUsers();
     }
 
 
@@ -350,7 +774,7 @@ public class ChatRepository {
 
 
     public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
-        return messageDao.getConversation(myId, friendId);
+        return messageDao.getConversation(myId , friendId);
     }
 
 
@@ -422,12 +846,14 @@ public class ChatRepository {
             for (int i = 0; i < array.length(); i++) {
                 JSONObject o = array.optJSONObject(i);
                 if (o == null) continue;
-
+                String onRelationStatus = o.isNull("relation_status")?
+                        "none" : o.optString("relation_status");
                 ChatUser u = new ChatUser(
-                        o.optString("nickname"),
                         o.optString("id"),
-                        o.optInt("status"),
-                        o.optInt("notSeenMessages")
+                        o.optString("nickname"),
+                        o.optInt("online_status"),
+                        onRelationStatus,
+                        99 //o.optInt("notSeenMessages")
                 );
                 list.add(u);
             }
@@ -437,12 +863,12 @@ public class ChatRepository {
             List<ChatUser> filtered = new ArrayList<>();
 
             for (ChatUser u : list) {
-                if (!u.getChatId().equals(myId)) {
+                if (!u.getUserId().equals(myId)) {
                     filtered.add(u);
                 }
             }
 
-            users.postValue(filtered);
+            friendUsers.postValue(filtered);
 
             applyPresence();
         });
@@ -516,6 +942,21 @@ public class ChatRepository {
 
             JSONObject data       = (JSONObject) args[0];
             ChatMessage serverMsg = ChatMessage.fromJson(data);
+
+            String fromId = serverMsg.id_from;
+            boolean isMe  = fromId.equals(MainApplication.myId);
+
+            if (!isMe) {
+
+                // ✅ 1. Set current chat user id
+                //currentFriendId.postValue(fromId);
+
+                // ✅ 2. Notify UI to open chat
+                //chatNavigationLiveData.postValue(fromId);
+
+                // ✅ 3. Ensure user appears in list (temporary)
+                ensureUserExists(fromId, "unknown");
+            }
 
             // 🔥 ONLY write to DB
             Executors.newSingleThreadExecutor().execute(() ->
@@ -635,10 +1076,13 @@ public class ChatRepository {
                 try {
                     obj = array.getJSONObject(i);
 
-                    user.chatId      = String.valueOf(obj.getInt("id"));
-                    user.nickname    = obj.getString("nickname");
-                    user.status      = obj.optInt("status", 0);
-                    user.connectedAt = obj.getString("connected_at");
+                    user.userId         = String.valueOf(obj.getInt("id"));
+                    user.nickname       = obj.getString("nickname");
+                    user.onlineStatus   = obj.optInt("online_status", 0);
+                    user.relationStatus = obj.isNull("relation_status")?
+                                         "none" : obj.optString("relation_status");;
+
+                    user.connectedAt    = obj.getString("connected_at");
                     user.lastConnectedAt       = obj.getString("last_seen_at");
                     user.notSeenMessagesNumber = obj.getInt("unread_count");
 
@@ -649,12 +1093,12 @@ public class ChatRepository {
                 users_.add(user);
             }
 
-            users.postValue(users_);
+            friendUsers.postValue(users_);
 
-            Log.d("ChatRepo", "📥 chat:users_with_unread : users_ : " + users_.get(0).getNickname());
+            //Log.d("ChatRepo", "📥 chat:users_with_unread : users_ : " + users_.get(0).getNickname());
 
             //Log.d("ChatRepo", "📥 chat:users_with_unread : users : " + users.getValue().get(0).getNickname());
-            Log.d("ChatRepo", "📥 chat:users_with_unread : users_ : " + users_.get(0).getNotSeenMessagesNumber());
+            //Log.d("ChatRepo", "📥 chat:users_with_unread : users_ : " + users_.get(0).getNotSeenMessagesNumber());
         });
 
 
@@ -675,14 +1119,14 @@ public class ChatRepository {
 
                 Log.d("ChatRepo", "user_status: " + userId + " -> " + status);
 
-                List<ChatUser> current = users.getValue();
+                List<ChatUser> current = friendUsers.getValue();
                 if (current == null) return;
 
                 for (ChatUser user : current) {
 
-                    if (user.getChatId().equals(userId)) {
+                    if (user.getUserId().equals(userId)) {
 
-                        user.setStatus(status);
+                        user.setOnlineStatus(status);
 
                         // 🔥 Update selected user if needed
                         //ChatUser selected = selectedUserLiveData.getValue();
@@ -700,7 +1144,7 @@ public class ChatRepository {
                     }
                 }
 
-                users.postValue(new ArrayList<>(current));
+                friendUsers.postValue(new ArrayList<>(current));
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -831,6 +1275,75 @@ public class ChatRepository {
             });
         });
 
+        socket.on("friend:request_received", args -> {
+
+            JSONObject data = (JSONObject) args[0];
+            String fromId   = data.optString("fromUserId");
+            String nickname = data.optString("nickname", "Unknown");
+
+            Log.d("SOCKET", "📩 Friend request from " + fromId + " nickname=" + nickname);
+
+            // 🔥 Add user locally
+            ensureUserExists(fromId, nickname);
+
+            // 🔥 mark as pending
+            Executors.newSingleThreadExecutor().execute(() -> {
+                userDao.insertOrUpdatePending(fromId);
+            });
+        });
+
+        socket.on("friend:request_rejected", args -> {
+            JSONObject data = (JSONObject) args[0];
+            String fromId   = data.optString("fromUserId");
+
+            Log.d("SOCKET", "❌ Rejected by " + fromId);
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+                userDao.setRejected(fromId);
+            });
+
+            // 🔥 emit event (Repository level)
+            rejectEvents.postValue(fromId);
+        });
+
+        socket.on("friend:request_accepted", args -> {
+
+            JSONObject data = (JSONObject) args[0];
+
+            String fromId   = data.optString("fromUserId");   // Alice
+            String nickname = data.optString("nickname", "Unknown");
+
+            Log.d("SOCKET", "✅ Accepted by " + fromId);
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+
+                ChatUser existing = userDao.getUserById(fromId);
+
+                if (existing == null) {
+
+                    // 🔥 CREATE USER (THIS WAS MISSING)
+                    ChatUser newUser = new ChatUser(
+                            fromId,
+                            nickname,
+                            1,
+                            "accepted",
+                            99
+                    );
+                    Log.d("SOCKET", "✅ Accepted : insert new user " + newUser);
+                    userDao.insert(newUser);
+                } else {
+                    Log.d("SOCKET", "✅ Accepted : update user. fromId =  " + fromId);
+                    // 🔥 UPDATE USER
+                    userDao.setAccepted(fromId);
+
+                }
+            });
+            // 🔥 MOVE THIS HERE (MAIN THREAD)
+            acceptEvents.postValue(fromId);
+        });
+
+
+
         /*
         socket.on("typing:stop", args -> {
             runOnUiThread(() -> adapter.hideTyping());
@@ -864,22 +1377,48 @@ public class ChatRepository {
 
     }
 
+    private void ensureUserExists(String userId, String nickname) {
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+
+            ChatUser existing = userDao.getUserById(userId);
+
+            if (existing == null) {
+                ChatUser newUser = new ChatUser(
+                        userId,
+                        nickname,   // or fetch nickname later
+                        0,
+                        "pending",
+                        99 //dummy
+                );
+
+                if (userDao.exists(userId) == 0) {
+                    userDao.insert(newUser);
+                }
+            }
+        });
+    }
+
+    public LiveData<ChatUser> getUserById(String userId) {
+        return userDao.getUserByIdLive(userId);
+    }
+
     private void applyPresence() {
 
-        List<ChatUser> current = users.getValue();
+        List<ChatUser> current = friendUsers.getValue();
         if (current == null || current.isEmpty()) return;
 
         for (ChatUser u : current) {
 
-            if (onlineUsersSnapshot.contains(u.getChatId())) {
-                u.setStatus(1);
+            if (onlineUsersSnapshot.contains(u.getUserId())) {
+                u.setOnlineStatus(1);
             } else {
-                u.setStatus(0);
+                u.setOnlineStatus(0);
             }
 
         }
 
-        users.postValue(new ArrayList<>(current));
+        friendUsers.postValue(new ArrayList<>(current));
     }
 
     private void updateUserBadge(String userId, String status) {
@@ -887,23 +1426,23 @@ public class ChatRepository {
 
     public void incrementUnreadCounter(String fromUserId) {
 
-        List<ChatUser> currentUsers = users.getValue();
+        List<ChatUser> currentUsers = friendUsers.getValue();
         if (currentUsers == null) return;
 
         List<ChatUser> updatedList = new ArrayList<>();
 
         for (ChatUser user : currentUsers) {
 
-            if (fromUserId.equals(user.chatId)) {
+            if (fromUserId.equals(user.userId)) {
                 user.notSeenMessagesNumber += 1;
             }
 
             updatedList.add(user);
         }
 
-        users.postValue(updatedList);  // 🔥 new list instance
-        Log.d("ChatRepo", "🟢 nickname = " +users.getValue().get(0).getNickname());
-        Log.d("ChatRepo", "🟢 not seen messages = " +users.getValue().get(0).getNotSeenMessagesNumber());
+        friendUsers.postValue(updatedList);  // 🔥 new list instance
+        Log.d("ChatRepo", "🟢 nickname = " + friendUsers.getValue().get(0).getNickname());
+        Log.d("ChatRepo", "🟢 not seen messages = " + friendUsers.getValue().get(0).getNotSeenMessagesNumber());
     }
 
 
@@ -1052,11 +1591,11 @@ public class ChatRepository {
             return;
         }
 
-        Log.d("ChatRepo", "📤 Emitting chat:join_conversation withUserId=" + user.getChatId());
+        Log.d("ChatRepo", "📤 Emitting chat:join_conversation withUserId=" + user.getUserId());
 
         JSONObject payload = new JSONObject();
         try {
-            payload.put("withUserId", user.getChatId());
+            payload.put("withUserId", user.getUserId());
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -1067,7 +1606,7 @@ public class ChatRepository {
     public void sendMessage(String text) {
         JSONObject payload = new JSONObject();
         try {
-            payload.put("toUserId", users.getValue().get(0).getId());
+            payload.put("toUserId", friendUsers.getValue().get(0).getUserId());
             payload.put("message", text);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -1079,7 +1618,7 @@ public class ChatRepository {
     private void sendMessageWithImage(String message, String imagePath) {
         try {
             socket.emit("chat:send_message", new JSONObject()
-                    .put("id_to", users.getValue().get(0).getId())
+                    .put("id_to", friendUsers.getValue().get(0).getUserId())
                     .put("message", message)
                     .put("image_path", imagePath)
             );
@@ -1167,9 +1706,11 @@ public class ChatRepository {
         }
     }
 
-    public void loadInitialMessages(String myId, String friendId) {
+    public void loadInitialMessages() {
         loadedMessages = 0;
 
+        String myId     = MainApplication.myId;
+        String friendId = currentFriendId.getValue();
         Executors.newSingleThreadExecutor().execute(() -> {
             List<ChatMessage> batch = messageDao.getMessagesBatch(myId, friendId, PAGE_SIZE, loadedMessages);
             Collections.reverse(batch);
@@ -1181,7 +1722,15 @@ public class ChatRepository {
         });
     }
 
-    public void loadMoreMessages(String myId, String friendId) {
+    public LiveData<List<ChatMessage>> loadMessagesBetweenMeAndOther(String me, String other) {
+
+        return messageDao.getMessagesBetween(me, other);
+    }
+
+    public void loadMoreMessages() {
+        String myId = MainApplication.myId;
+        String friendId = currentFriendId.getValue();
+
         Executors.newSingleThreadExecutor().execute(() -> {
             List<ChatMessage> batch = messageDao.getMessagesBatch(myId, friendId, PAGE_SIZE, loadedMessages);
             Collections.reverse(batch); // oldest first

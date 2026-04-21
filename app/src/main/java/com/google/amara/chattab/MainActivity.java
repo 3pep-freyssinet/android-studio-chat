@@ -3,6 +3,8 @@ package com.google.amara.chattab;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
@@ -61,7 +63,11 @@ import androidx.lifecycle.ViewModelProvider;
 //import com.google.amara.authenticationretrofit.ChangePasswordActivity;
 import com.google.amara.chattab.ui.main.ChatRepository;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.installations.FirebaseInstallations;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -98,6 +104,13 @@ import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 //import com.androidcodeman.simpleimagegallery.ImageProfileGalleryMainActivity;
 //import com.google.gson.Gson;
@@ -133,6 +146,8 @@ public class MainActivity extends AppCompatActivity
 
     // integer for permissions results request
     private static final int ALL_PERMISSIONS_RESULT = 1011;
+    private static final Object MAX_RETRIES = 3;
+
 
 
     private Button      btn;
@@ -179,6 +194,16 @@ public class MainActivity extends AppCompatActivity
 
     private static String uniqueID              = null;
     private static final String PREF_UNIQUE_ID  = "PREF_UNIQUE_ID";
+    private static final String PREFS_NAME      = "myAppPrefs";
+    private static final String PIN_PREF        = "pin_pref";
+
+
+    public static final String JWT_TOKEN   = MainApplication.JWT_TOKEN;
+
+    //Fanny
+    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQxOSwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzUwMzUwMjAsImV4cCI6MTc3NTEyMTQyMH0.PWNd-IFN8WtLlGatnVmlCNDlmhm3AOuvJ-YgFu5DB2c";
+
+    private static final String FCM_UPDATED_AT = "aaa";
 
     private ChatSharedViewModel vm;
 
@@ -202,11 +227,26 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-
     private String getDate(long time) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.FRENCH);
         return sdf.format(new Date(time));
     }
+
+    public interface FirebaseIdCallback{
+        void onSuccess(String firebaseId);
+        void onFailure(Exception exception);
+    }
+
+    public interface FirebaseIdCallback_{
+        void onSuccess(String firebaseId);
+        void onFailure(Exception exception);
+    }
+
+    public interface SendTokensToBackendCallback{
+        void onSuccess();
+        void onFailure(Exception exception);
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -236,11 +276,42 @@ public class MainActivity extends AppCompatActivity
         if(extras != null){ //we come from 'NavigatorActivity', there is an extra
             String NICKNAME = extras.getString("NICKNAME");
             nickname.setText(NICKNAME);
+            Intent intent = getIntent();
+
+            String senderId   = intent.getStringExtra("senderId");
+            String senderName = intent.getStringExtra("senderName");
         }
 
         //socket is defined in 'MainApplication'
         //socket = SocketManager.getSocket();
         //SocketManager.connect();
+
+        /*
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        1001
+                );
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            NotificationChannel channel = new NotificationChannel(
+                    "chat_channel",              // 🔥 MUST MATCH backend EXACTLY
+                    "Chat Messages",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+
+            channel.setDescription("Chat notifications");
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
+        }
+        */
 
         //send avatar-image to backend.
         String avatarBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAUA..."; // short Base64 placeholder
@@ -257,6 +328,7 @@ public class MainActivity extends AppCompatActivity
 
         vm.startChat();
 
+        /*
         vm.getUsers().observe(this, users -> {
             if (users == null) return;
 
@@ -265,6 +337,13 @@ public class MainActivity extends AppCompatActivity
                 Log.d("MainActivity", "User: " + u.getNickname());
             }
         });
+        */
+
+        //FCM
+        if(MainApplication.FCM){
+            FirebaseApp.initializeApp(this);
+            checkFirebaseId();
+        }
 
 
         //get the users list with unread messages
@@ -311,6 +390,132 @@ public class MainActivity extends AppCompatActivity
 
 
     }//end 'onCreate'
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+
+        String senderId = intent.getStringExtra("senderId");
+        //openChat(senderId);
+    }
+
+    private void checkFirebaseId() {
+        // Simulating async Firebase ID check
+        getFirebaseId_(this, new FirebaseIdCallback() {
+            @Override
+            public void onSuccess(String firebaseId) {
+                // Store Firebase ID or log it
+                Log.d("StartupState", "Firebase ID: " + firebaseId);
+
+                //store the fcm token in 'SharedPreferences'
+                SharedPreferences sharedPreferences = MainApplication.getSharedPreferences_();
+                SharedPreferences.Editor editor     = sharedPreferences.edit();
+                editor.putString("FCM_TOKEN", firebaseId);
+                editor.apply();
+
+                //send token to backend
+                sendTokensToBackend(MainActivity.this,
+                        firebaseId,
+                        FCM_UPDATED_AT,
+                        JWT_TOKEN,
+                        new SendTokensToBackendCallback() {
+                            @Override
+                            public void onSuccess() {
+                                Log.d("StartupState", "Firebase ID successfully saved in backend: ");
+                            }
+
+                            @Override
+                            public void onFailure(Exception exception) {
+                                Log.d("StartupState", "Firebase failed to saved in backend");
+                            }
+                });
+            }
+
+            @Override
+            public void onFailure(Exception exception) {
+                Log.e("StartupState", "Firebase ID fetch failed: " + exception.getMessage());
+                //proceedToNextState(StartupState.SHOW_LOGIN);
+            }
+        });
+
+    }
+
+    public static void getFirebaseId_(Context context, FirebaseIdCallback callback) {
+        getFirebaseId(context, ((int)(MAX_RETRIES) - 1), new FirebaseIdCallback_() {
+            @Override
+            public void onSuccess(String firebaseId) {
+                //save 'firebaseId' in 'Shared Preferences'
+
+                //SharedPreferences sharedPreferences = PreferenceUtils.getPreferences(context);
+                SharedPreferences sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+
+                SharedPreferences.Editor editor =sharedPreferences.edit();
+                if(firebaseId != null){
+                    editor.putString("FIREBASE_ID", firebaseId);
+                    editor.apply();
+                    callback.onSuccess(firebaseId);
+                    return;
+                }
+                callback.onFailure(new Exception("FIREBASE_ID_NULL"));
+            }
+
+            @Override
+            public void onFailure(Exception exception) {
+                callback.onFailure(new Exception("Firebase id exception"));
+            }
+        });
+    }
+
+    public static void getFirebaseId(Context context,
+                                     int retryCount,
+                                     FirebaseIdCallback_ callback) {
+        //Task<String> task = FirebaseInstallations.getInstance().getId();
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Log.e("FCM", "Fetching FCM token failed", task.getException());
+                        callback.onFailure(task.getException());
+                        return;
+                    }
+
+                    String token = task.getResult();
+                    Log.d("FCM", "FCM Token: " + token);
+
+                    // Send this to backend
+                    callback.onSuccess(token);
+                });
+
+        /*
+        if (task.isComplete()) {
+            if (task.isSuccessful()) {
+                String firebaseId = task.getResult();
+                Log.d("TAG", "✅ Immediate Firebase ID: " + firebaseId);
+                callback.onSuccess(firebaseId);
+            } else {
+                Log.e("TAG", "❌ Immediate Firebase ID error", task.getException());
+                if (retryCount >= 0) {
+                    long delay = (long) Math.pow(2, (int)(MAX_RETRIES) - retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+                    new Handler(Looper.getMainLooper()).postDelayed(() ->
+                            getFirebaseId(context, retryCount - 1, callback), delay);
+                } else {
+                    callback.onFailure(task.getException());
+                }
+            }
+        } else {
+            task.addOnCompleteListener(t -> {
+                if (t.isSuccessful()) {
+                    String firebaseId = t.getResult();
+                    Log.d("TAG", "✅ Firebase ID (delayed): " + firebaseId);
+                    callback.onSuccess(firebaseId);
+                } else {
+                    Log.e("TAG", "❌ Firebase ID fetch failed", t.getException());
+                    callback.onFailure(t.getException());
+                }
+            });
+        }
+        */
+    }
 
     //called from 'onStart'
     private void nextInitSocket1() {
@@ -366,6 +571,58 @@ public class MainActivity extends AppCompatActivity
         finish();
     }
 
+    // Send the FCM token and JWT token to backend
+    private static void sendTokensToBackend(Context context, String fcmToken, String fcmUpdatedAt,
+                                            String jwtToken, SendTokensToBackendCallback callback) {
+
+        OkHttpClient okHttpClient     = new OkHttpClient();
+        //OkHttpClient okHttpClient = ((MyApplication) getApplicationContext()).getHttpClient();
+
+        //OkHttpClient okHttpClient = ((MyApplication)context.getApplicationContext()).getOkHttpClient();
+
+        /*
+        RequestBody requestBody = new FormBody.Builder()
+                .add("fcm_token", fcmToken)
+                .build();
+        */
+
+        RequestBody requestBody = new FormBody.Builder()
+                .add("fcm_token", fcmToken)
+                .add("fcm_updated_at", String.valueOf(fcmUpdatedAt))
+                .build();
+
+        //String jsonBody = "{\"fcm_token\": \"" + fcmToken + "\"}";
+        //String jsonBody = "{\"fcm_updated_at\": \"" + fcmUpdatedAt + "\"}";
+        //RequestBody requestBody = RequestBody.create(jsonBody, MediaType.parse("application/json"));
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/fcm/store-fcm-token")  // Replace with your backend URL
+                //.url("http://localhost:5000/fcm/store-fcm-token")
+                .addHeader("Authorization", "Bearer " + jwtToken)  // Send the JWT for authentication
+                .post(requestBody)
+                .build();
+
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();  // Handle failure
+                callback.onFailure(e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    //throw new IOException("Unexpected code " + response);
+                    callback.onFailure(new Exception());
+                }
+
+                // Handle successful registration of FCM token
+                Log.d("FCM", "FCM token sent successfully");
+                //The FCM is already saved in 'Shared Preferences'
+                callback.onSuccess();
+            }
+        });
+    }
 
 
     @Override

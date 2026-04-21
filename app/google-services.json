@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "457788790439",
+    "project_id": "android-chatservice-push",
+    "storage_bucket": "android-chatservice-push.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457788790439:android:d2f9dc3175364756102d82",
+        "android_client_info": {
+          "package_name": "com.google.amara.chatservicepush"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzSCbiI4Hq6cJlRSddhXQJXgVsnr-jgqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457788790439:android:7c59402ff644094c102d82",
+        "android_client_info": {
+          "package_name": "com.google.amara.chattab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzSCbiI4Hq6cJlRSddhXQJXgVsnr-jgqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

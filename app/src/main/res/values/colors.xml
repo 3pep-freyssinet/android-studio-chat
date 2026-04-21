@@ -20,6 +20,8 @@
     <color name="colorYellow">#FFFF00</color>
     <color name="colorCyan">#00FFFF</color>
     <color name="colorRed">#FF0000</color>
+    <color name="tab_unselected">#FF888888</color>
+    <color name="tab_selected">#FF6200</color>
 
     <array name="status">
         <item>#FFFF0000</item>

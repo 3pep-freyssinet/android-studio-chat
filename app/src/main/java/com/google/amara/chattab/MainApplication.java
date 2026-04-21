@@ -9,8 +9,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -34,6 +38,7 @@ import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import okhttp3.OkHttpClient;
 
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
@@ -43,25 +48,42 @@ import androidx.lifecycle.LifecycleEventObserver;
 
 public class MainApplication extends Application{
 
-    public static final String SOCKET_URL = "https://android-chat-server.onrender.com";
+    public static final String SOCKET_URL  = "https://android-chat-server.onrender.com";
+    private static final String PREFS_NAME = "myAppPrefs";
+
     private int activityReferences = 0;
     private boolean isActivityChangingConfigurations = false;
 
+    public static final boolean FCM = false; ;
+
     //Alice - redmi
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQxNiwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzQ5NDc0MTAsImV4cCI6MTc3NTAzMzgxMH0.PXgHNSUHgZeTTukNNeat9Yunyd2sIOvL5wLf3akcbFY";
-    //public static String myId     = "416";
-    //public static String friendId = "417";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQ5MSwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzY3NjQzMjksImV4cCI6MTc3Njg1MDcyOX0.4FbCfjClKqE7uXOsRbkxt78N5m1N2S3SsYNwjXsiLqg";
+    public static String myId     = "491";
+    public static String friendId = "492";
+    public static final int senderAvatarId = R.drawable.amy_jones;
 
-
-    private static final String TAG        = "SocketTestActivity";
+    private static final String TAG         = "SocketTestActivity";
     public static String currentChatUserId; //set when a user tapes an avatar to open conversation
+    public static String currentChatUserId_ = null;
+    public static String pendingChatUserId  = null;
 
     //Fanny- poco
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQxNywidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzQ5NDc0OTksImV4cCI6MTc3NTAzMzg5OX0.6D7LBchWX0DsuKxDUMhuj5zK9xTnCMcwMQN5gQi75qY";
-    public static String myId     = "417";
-    public static String friendId = "416";
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQ5MiwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzY3NjQ0MjcsImV4cCI6MTc3Njg1MDgyN30.Fj7k-fVzR5a1_ypDf6CjCISu-9SLMVPTe9u1qXLQhjA";
+    //public static String myId     = "492";
+    //public static String friendId = "491";
+    //public static final int senderAvatarId = R.drawable.eugene_lee;
+
+    //Karine- Harry
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQ0OCwidXNlcm5hbWUiOiJLYXJpbmUxIiwiaWF0IjoxNzc2MjY4MjE4LCJleHAiOjE3NzYzNTQ2MTh9.U-1TM2MlCL7fMynA3WjZIAlB12I1NUQTt3fG_d9h9L4";
+    //public static String myId     = "448";
+    //public static String friendId = "446";
+    //public static final int senderAvatarId = R.drawable.eugene_lee;
 
     private static Socket socket;
+
+    //SharedPreferences sharedPreferences = PreferenceUtils.getPreferences(context);
+    private static SharedPreferences sharedPreferences = null;  //= getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    private static SharedPreferences.Editor editor     = null;
 
     private BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
 
@@ -78,9 +100,16 @@ public class MainApplication extends Application{
         }
     };
 
+    public static SharedPreferences getSharedPreferences_() {
+        return sharedPreferences;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+
+        sharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        editor = sharedPreferences.edit();
 
         //String token = JwtStorage.getToken(this);
         //if (token == null) return;
@@ -125,6 +154,7 @@ public class MainApplication extends Application{
                             }
 
                             // ⭐ kill transport (VERY important on Android)
+
                             socket.disconnect();
                         }
                     }
@@ -235,7 +265,7 @@ public class MainApplication extends Application{
 
                 //Get list of fragments
                 //List<Fragment> fragments = getSupportFragmentManager().getFragments();
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) { //sdk=26
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { //sdk=26
 
                 }
 
@@ -273,5 +303,9 @@ public class MainApplication extends Application{
 
                 break;
         }
+    }
+
+    public OkHttpClient getHttpClient() {
+        return new OkHttpClient();
     }
 }

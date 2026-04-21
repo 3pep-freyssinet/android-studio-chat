@@ -10,10 +10,11 @@ import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.google.amara.chattab.ChatMessage;
+import com.google.amara.chattab.ChatUser;
 
 @Database(
-        entities = {ChatMessage.class},
-        version = 3,   // ⬅️ increment
+        entities = {ChatMessage.class, ChatUser.class},
+        version = 4,   // ⬅️ increment
         exportSchema = true
 )
 
@@ -22,6 +23,7 @@ public abstract class AppDatabase extends RoomDatabase {
     private static volatile AppDatabase INSTANCE;
 
     public abstract MessageDao messageDao();
+    public abstract UserDao userDao();
 
     public static AppDatabase getInstance(Context context) {
         if (INSTANCE == null) {
@@ -52,13 +54,18 @@ public abstract class AppDatabase extends RoomDatabase {
         return INSTANCE;
     }
 
-    static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+    static final Migration MIGRATION_3_4 = new Migration(3, 4) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase db) {
 
-            // Rename column (SQLite supports this)
+            // ✅ CREATE users table
             db.execSQL(
-                    "ALTER TABLE messages ADD COLUMN serverId INTEGER"
+                    "CREATE TABLE IF NOT EXISTS users (" +
+                            "userId TEXT NOT NULL, " +
+                            "nickname TEXT, " +
+                            "status INTEGER NOT NULL, " +
+                            "isFriend INTEGER NOT NULL, " +
+                            "PRIMARY KEY(userId))"
             );
         }
     };
