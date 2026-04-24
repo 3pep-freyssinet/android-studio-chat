@@ -3,10 +3,13 @@ package com.google.amara.chattab;
 
 import android.app.Dialog;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -21,21 +24,25 @@ import androidx.recyclerview.widget.RecyclerView;
 //import com.example.aymen.androidchat.ChatUserAdapter;
 //import com.example.aymen.androidchat.ChatMessage;
 //import com.example.aymen.androidchat.UserSwipeRecyclerView;
+import com.google.amara.chattab.entities.UserUiState;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
 import com.google.amara.chattab.ui.main.ChatViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 //Ce fragment est défini dans 'TabChatActivity-SectionPager'
 
 public class ChatBoxUsers extends Fragment {
+
+    private static final long REJECTED_DELAY = 60 * 60 * 1000;  //1 hour
+    private static final String TAG = "ChatBoxUsers";
 
     private ChatViewModel       viewModel;
     private ChatUserAdapter     adapter;
@@ -76,16 +83,28 @@ public class ChatBoxUsers extends Fragment {
                 @Override
                 public void onChanged(List<ChatUser> users) {
 
-                    if (users == null || users.isEmpty()) return; // wait for real data
-
-                    cachedUsers = users;
+                    if (users == null || users.isEmpty()) return;
 
                     List<ChatUser> filtered =
-                            removeExistingFriends(cachedUsers, cachedFriends);
+                            removeExistingFriends(users, cachedFriends);
 
-                    showUsersDialog(filtered);
+                    AtomicBoolean dialogShown = new AtomicBoolean(false);
 
-                    // 🔥 VERY IMPORTANT → prevent loop
+                    viewModel.getAllUiStates().observe(getViewLifecycleOwner(), states -> {
+
+                        if (dialogShown.get()) return;
+                        dialogShown.set(true);
+
+                        Map<String, Long> cooldownMap = new HashMap<>();
+
+                        for (UserUiState s : states) {
+                            cooldownMap.put(s.userId, s.lastRejectedAt);
+                        }
+
+                        showUsersDialog(filtered, cooldownMap);
+                    });
+
+                    // 🔥 stop observing users
                     viewModel.getAllUsers().removeObserver(this);
                 }
             });
@@ -157,7 +176,7 @@ public class ChatBoxUsers extends Fragment {
 
     private void openUsersDialogOnce() {
         List<ChatUser> filtered = removeExistingFriends(cachedUsers, cachedFriends);
-        showUsersDialog(filtered);
+        //showUsersDialog(filtered, cooldownMap);
     }
 
     private void loadAllUsers() {
@@ -242,7 +261,7 @@ public class ChatBoxUsers extends Fragment {
 
     }
 
-    private void showUsersDialog(List<ChatUser> users) {
+    private void showUsersDialog(List<ChatUser> users, Map<String, Long> cooldownMap) {
 
         Dialog dialog = new Dialog(requireContext());
         dialog.setContentView(R.layout.dialog_users);
@@ -251,15 +270,51 @@ public class ChatBoxUsers extends Fragment {
         rv.setLayoutManager(new LinearLayoutManager(ChatBoxUsers.this.getContext()));
 
         ChatAllUsersAdapter adapter = new ChatAllUsersAdapter(
-                ChatBoxUsers.this.getContext(),        // context
+                getContext(),        // context
                 users,       // list
-                user -> {    // ✅ now Java understands this
+                user -> {    // click logic
 
+                    Executors.newSingleThreadExecutor().execute(() -> {
+
+                        UserUiState state = viewModel.getUserUiStateSync(user.getUserId());
+
+                        long ts = state != null ? state.lastRejectedAt : 0;
+                        long now = System.currentTimeMillis();
+
+                        if (ts > 0 && now - ts < 60_000) {
+
+                            new Handler(Looper.getMainLooper()).post(() ->
+                                    Toast.makeText(getActivity(),
+                                            "Try again later",
+                                            Toast.LENGTH_SHORT
+                                    ).show()
+                            );
+
+                            return;
+                        }
+
+                        // ✅ proceed with request
+                    });
+
+                    /*
                     if (!user.isFriend() && !user.isPending()) {
+
+                        // 🔥 ADD HERE
+                        Log.d("COOLDOWN", "clicked user ts=" + user.getLastRejectedAt());
+                        long now = System.currentTimeMillis();
+                        if (user.getLastRejectedAt() > 0L &&
+                                now - user.getLastRejectedAt() < REJECTED_DELAY) {
+                            Toast.makeText(getActivity(), "Try again later", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
                         viewModel.sendFriendRequest(user.getUserId());
                         viewModel.setPending(user);
-                        Log.d("API", "Sending friend request: " + MainApplication.myId + " → " + user.getUserId());
                     }
+                    */
+
+                    viewModel.sendFriendRequest(user.getUserId());
+                    viewModel.setPending(user);
 
                     viewModel.addFriend(user);
                     viewModel.setCurrentFriendId(user.getUserId());
@@ -271,7 +326,8 @@ public class ChatBoxUsers extends Fragment {
                         ((TabChatActivity) getActivity()).openChatTab();
                     }
                     dialog.dismiss();
-                }
+                },
+                cooldownMap
         );
 
         rv.setAdapter(adapter);
@@ -286,21 +342,33 @@ public class ChatBoxUsers extends Fragment {
 
         String myUserId = MainApplication.myId;
 
-        Set<String> friendIds = new HashSet<>();
-
-        if (friends != null) {
-            for (ChatUser f : friends) {
-                friendIds.add(f.getUserId());
-            }
-        }
-
         List<ChatUser> result = new ArrayList<>();
 
         for (ChatUser user : allUsers) {
 
+            // ❌ remove myself
             if (user.getUserId().equals(myUserId)) continue;
 
-            if (!friendIds.contains(user.getUserId())) {
+            boolean isActiveRelation = false;
+
+            if (friends != null) {
+                for (ChatUser f : friends) {
+
+                    if (f.getUserId().equals(user.getUserId())) {
+
+                        String status = f.getRelationStatus();
+
+                        // 🔥 ONLY exclude active states
+                        if ("accepted".equals(status) || "pending".equals(status)) {
+                            isActiveRelation = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // ✅ keep rejected users
+            if (!isActiveRelation) {
                 result.add(user);
             }
         }

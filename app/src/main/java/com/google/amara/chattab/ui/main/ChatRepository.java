@@ -20,6 +20,8 @@ import com.google.amara.chattab.SocketManager;
 import com.google.amara.chattab.dao.AppDatabase;
 import com.google.amara.chattab.dao.MessageDao;
 import com.google.amara.chattab.dao.UserDao;
+import com.google.amara.chattab.dao.UserUiStateDao;
+import com.google.amara.chattab.entities.UserUiState;
 import com.google.amara.chattab.helper.SupabaseStorageUploader;
 
 import org.json.JSONArray;
@@ -30,8 +32,10 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -356,7 +360,27 @@ public class ChatRepository {
                     allUsersList.add(user);
                 }
 
-                allUsers.postValue(allUsersList); // 🔥 KEY LINE
+                Executors.newSingleThreadExecutor().execute(() -> {
+
+                    List<ChatUser> localUsers = userDao.getAllUsersSync();
+
+                    Map<String, Long> rejectedMap = new HashMap<>();
+
+                    for (ChatUser u : localUsers) {
+                        if (u.getLastRejectedAt() > 0) {
+                            rejectedMap.put(u.getUserId(), u.getLastRejectedAt());
+                        }
+                    }
+
+                    for (ChatUser u : allUsersList) {
+                        Long ts = rejectedMap.get(u.getUserId());
+                        if (ts != null) {
+                            u.setLastRejectedAt(ts); // 🔥 restore cooldown
+                        }
+                    }
+
+                    allUsers.postValue(allUsersList);
+                });
             }
 
             @Override
@@ -479,6 +503,10 @@ public void rejectFriend(String myId, String friendId) {
     });
 }
 
+    public LiveData<List<UserUiState>> getAllUiStates() {
+        return userUiStateDao.getAll();
+    }
+
     public interface UserStatusListener {
         void onUserStatusChanged(ChatUser user);
     }
@@ -512,9 +540,11 @@ public void rejectFriend(String myId, String friendId) {
     private Runnable typingTimeout;
     private final Set<String> onlineUsersSnapshot = new HashSet<>();
 
-    private boolean   listening = false;
-    public MessageDao messageDao;
-    public UserDao    userDao;
+    private boolean       listening = false;
+    public MessageDao     messageDao;
+    public UserDao        userDao;
+    public UserUiStateDao userUiStateDao;
+
     private Context   appContext;
     private final String VIEW_TYPE_TYPING = "3";
     private long lastTypingSentAt = 0;
@@ -542,6 +572,8 @@ public void rejectFriend(String myId, String friendId) {
         AppDatabase db = AppDatabase.getInstance(context);
         messageDao     = db.messageDao();
         userDao        = db.userDao();
+        userUiStateDao = db.userUiStateDao();
+
         socket         = SocketManager.getSocket();
 
         attachSocketListeners();
@@ -777,6 +809,9 @@ public void rejectFriend(String myId, String friendId) {
         return messageDao.getConversation(myId , friendId);
     }
 
+    public UserUiState getUserUiStateSync(String userId) {
+        return userUiStateDao.getByUserId(userId);
+    }
 
     /*
     public LiveData<List<ChatMessage>> getMessages(String myId, String friendId) {
@@ -1300,6 +1335,13 @@ public void rejectFriend(String myId, String friendId) {
 
             Executors.newSingleThreadExecutor().execute(() -> {
                 userDao.setRejected(fromId);
+
+                UserUiState state = new UserUiState(
+                        fromId,
+                        System.currentTimeMillis()
+                );
+
+                userUiStateDao.upsert(state);
             });
 
             // 🔥 emit event (Repository level)

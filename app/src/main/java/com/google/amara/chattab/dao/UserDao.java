@@ -49,4 +49,10 @@ public interface UserDao {
 
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
     LiveData<ChatUser> getUserByIdLive(String userId);
+
+    @Query("UPDATE users SET lastRejectedAt = :time WHERE userId = :userId")
+    void setLastRejectedAt(String userId, long time);
+
+    @Query("SELECT * FROM users")
+    List<ChatUser> getAllUsersSync();
 }

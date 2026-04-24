@@ -33,6 +33,7 @@ import java.util.List;
 public class ChatUserAdapter
         extends RecyclerView.Adapter<ChatUserAdapter.MyViewHolder> {
 
+    
     private List<ChatUser> chatUsers = new ArrayList<>();
     private final Context context;
 
@@ -41,7 +42,8 @@ public class ChatUserAdapter
 
     public static final String STATUS_PENDING  = "pending";
     public static final String STATUS_ACCEPTED = "accepted";
-
+    private static final String STATUS_REJECTED= "rejected";
+    
     private List<ChatUser> users = new ArrayList<>();
 
     public void updateList(List<ChatUser> newList) {
@@ -136,7 +138,9 @@ public class ChatUserAdapter
         else if (STATUS_ACCEPTED.equals(user.getRelationStatus())) {
             showFriend(holder, user);
         }
-        else {
+        else if (STATUS_REJECTED.equals(user.getRelationStatus())) {
+            showRejected(holder, user);
+        }else {
             showUnknown(holder, user);
         }
 
@@ -189,6 +193,16 @@ public class ChatUserAdapter
                 listener.onUserClicked(user);
             }
         });
+    }
+
+    private void showRejected(MyViewHolder holder, ChatUser user) {
+
+        holder.statusText.setVisibility(View.VISIBLE);
+        holder.statusText.setText("Request rejected");
+
+        holder.acceptBtn.setVisibility(View.GONE);
+        holder.rejectBtn.setVisibility(View.GONE);
+        holder.messageBtn.setVisibility(View.GONE); // 🔥 IMPORTANT
     }
 
     private void showUnknown(MyViewHolder holder, ChatUser user) {

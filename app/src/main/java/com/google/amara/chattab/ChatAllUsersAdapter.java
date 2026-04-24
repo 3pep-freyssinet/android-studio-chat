@@ -15,9 +15,11 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.google.amara.chattab.ui.main.ChatViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 
 public class ChatAllUsersAdapter
@@ -28,7 +30,7 @@ public class ChatAllUsersAdapter
     private OnUserClickListener_ listener;
 
      // onBindViewHolder uses 'chatAllUsers'
-
+    public Map cooldownMap;
 
     // Click callback
     public interface OnUserClickListener_ {
@@ -38,11 +40,13 @@ public class ChatAllUsersAdapter
     //Constructor
     public ChatAllUsersAdapter(Context context,
                                List<ChatUser> chatAllUsers,
-                               OnUserClickListener_ listener) {
+                               OnUserClickListener_ listener,
+                               Map cooldownChecker) {
 
         this.context = context;
         this.chatAllUsers = chatAllUsers;
         this.listener = listener;
+        this.cooldownMap = cooldownChecker;
     }
 
     public void updateList(List<ChatUser> newList) {
@@ -81,11 +85,28 @@ public class ChatAllUsersAdapter
             @NonNull MyViewHolder holder,
             int position
     ) {
-        ChatUser user = chatAllUsers.get(position);
-        int unread    = user.getNotSeenMessagesNumber();
+
+        ChatUser user       = chatAllUsers.get(position);
+        int unread          = user.getNotSeenMessagesNumber();
+
+        Long ts  = (Long) cooldownMap.get(user.getUserId());
+        long now = System.currentTimeMillis();
+
+        boolean inCooldown = ts != null && ts > 0 && now - ts < 60_000;
+
+        //grey imageProfile
+        holder.imageProfile.setAlpha(inCooldown ? 0.4f : 1f);
+        holder.itemView.setEnabled(!inCooldown);
+
+        //Enable/disable item
+        holder.itemView.setEnabled(!inCooldown);
+        holder.itemView.setClickable(!inCooldown);
 
         //Normal click
         holder.itemView.setOnClickListener(v -> {
+            if (inCooldown) {
+                return; // 🔥 silent block
+            }
             if (listener != null) listener.onUserClicked(user);
         });
 
@@ -123,6 +144,8 @@ public class ChatAllUsersAdapter
         } else {
             holder.imageProfile.setImageResource(R.drawable.avatar);
         }
+
+        holder.imageProfile.setAlpha(inCooldown ? 0.4f : 1f);
 
         holder.nickname.setText(user.getNickname());
         holder.timeConnection.setText(

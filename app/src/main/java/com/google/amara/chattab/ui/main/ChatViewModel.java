@@ -14,6 +14,7 @@ import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
 import com.google.amara.chattab.MainApplication;
 import com.google.amara.chattab.SocketManager;
+import com.google.amara.chattab.entities.UserUiState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -147,6 +148,23 @@ public class ChatViewModel extends AndroidViewModel {
 
     public LiveData<List<ChatUser>> getAllUsers() {
         return repo.getAllUsers();
+    }
+
+    public UserUiState getUserUiStateSync(String userId) {
+        return repo.getUserUiStateSync(userId);
+    }
+
+    public boolean isInCooldown(String userId) {
+        UserUiState state = repo.getUserUiStateSync(userId);
+
+        long ts = state != null ? state.lastRejectedAt : 0;
+        long now = System.currentTimeMillis();
+
+        return ts > 0 && now - ts < 60_000;
+    }
+
+    public LiveData<List<UserUiState>> getAllUiStates() {
+        return repo.getAllUiStates();
     }
 
     public void acceptFriend(String friendId) {

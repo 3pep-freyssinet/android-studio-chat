@@ -232,6 +232,8 @@ public class ChatBoxMessage extends Fragment {
             View statusBadge          = view.findViewById(R.id.status_badge);//online/offline
 
             headerName.setText(selectedUser.getNickname());
+
+            //'statusText' is observed and updated in 'observeUser_'.
             //statusText.setText(selectedUser.getRelationStatus());
             if (selectedUser.getImageProfile() != null && !selectedUser.getImageProfile().isEmpty()) {
                 Glide.with(requireActivity())
@@ -852,8 +854,15 @@ public class ChatBoxMessage extends Fragment {
         chatViewModel.getUserById(userId).observe(getViewLifecycleOwner(), user -> {
 
             if (user == null) return;
-
             TextView statusText = view.findViewById(R.id.status_text);
+            String status = user.getRelationStatus();
+
+            if ("accepted".equals(status)) {
+                statusText.setVisibility(View.GONE);
+            } else {
+                statusText.setVisibility(View.VISIBLE);
+                statusText.setText(status);
+            }
 
             statusText.setText(user.getRelationStatus()); // 🔥 always fresh
         });

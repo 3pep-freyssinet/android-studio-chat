@@ -325,7 +325,7 @@ public class ChatMessageAdapter
             time        = itemView.findViewById(R.id.tv_time);
             imagePhoto  = itemView.findViewById(R.id.image_photo);
             statusIcon  = itemView.findViewById(R.id.iv_status);    //online/offline
-            statusText  = itemView.findViewById(R.id.status_text);  //pending, accept, reject friendship
+            //statusText  = itemView.findViewById(R.id.status_text);  //pending, accept, reject friendship
 
 
             //holder.statusText = itemView.findViewById(R.id.status_text);
@@ -354,6 +354,7 @@ public class ChatMessageAdapter
                     break;
             }
             */
+
             switch (msg.getStatus()) {
                 case "sending": //"pending":
                     statusIcon.setImageResource(R.drawable.hourglass_icon);

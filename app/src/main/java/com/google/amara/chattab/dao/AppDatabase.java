@@ -11,10 +11,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
+import com.google.amara.chattab.entities.UserUiState;
 
 @Database(
-        entities = {ChatMessage.class, ChatUser.class},
-        version = 4,   // ⬅️ increment
+        entities = {ChatMessage.class, ChatUser.class, UserUiState.class},
+        version = 5,   // ⬅️ increment
         exportSchema = true
 )
 
@@ -24,6 +25,7 @@ public abstract class AppDatabase extends RoomDatabase {
 
     public abstract MessageDao messageDao();
     public abstract UserDao userDao();
+    public abstract UserUiStateDao userUiStateDao();
 
     public static AppDatabase getInstance(Context context) {
         if (INSTANCE == null) {
@@ -54,17 +56,15 @@ public abstract class AppDatabase extends RoomDatabase {
         return INSTANCE;
     }
 
-    static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+    static final Migration MIGRATION_4_5 = new Migration(4, 5) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase db) {
 
             // ✅ CREATE users table
             db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS users (" +
+                    "CREATE TABLE IF NOT EXISTS user_ui_state (" +
                             "userId TEXT NOT NULL, " +
-                            "nickname TEXT, " +
-                            "status INTEGER NOT NULL, " +
-                            "isFriend INTEGER NOT NULL, " +
+                            "lastRejectedAt INTEGER NOT NULL, " +
                             "PRIMARY KEY(userId))"
             );
         }

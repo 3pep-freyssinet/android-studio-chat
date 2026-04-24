@@ -48,6 +48,7 @@ public class ChatUser implements Serializable,
     public String disconnectedAt;       //disccnnection time
     public String blacklistAuthor;      // the author of blacklist
 
+    private Long lastRejectedAt;
 
     public ChatUser() {}
 
@@ -257,5 +258,12 @@ public class ChatUser implements Serializable,
 
     public boolean isAccepted() {
         return relationStatus.equals("accepted");
+    }
+
+    public long getLastRejectedAt() {
+        return lastRejectedAt != null ? lastRejectedAt : 0L;
+    }
+    public void setLastRejectedAt(long lastRejectedAt) {
+        this.lastRejectedAt = lastRejectedAt;
     }
 }
