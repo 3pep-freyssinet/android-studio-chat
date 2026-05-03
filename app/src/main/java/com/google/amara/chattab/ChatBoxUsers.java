@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 //import com.example.aymen.androidchat.ChatUserAdapter;
 //import com.example.aymen.androidchat.ChatMessage;
 //import com.example.aymen.androidchat.UserSwipeRecyclerView;
+import com.google.amara.chattab.dao.UserUiStateDao;
 import com.google.amara.chattab.entities.UserUiState;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
 import com.google.amara.chattab.ui.main.ChatViewModel;
@@ -51,6 +52,10 @@ public class ChatBoxUsers extends Fragment {
 
     private List<ChatUser> cachedUsers   = new ArrayList<>();
     private List<ChatUser> cachedFriends = new ArrayList<>();
+    private RecyclerView userRecyclerView;
+
+    private String pendingHighlightUserId;
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -123,7 +128,7 @@ public class ChatBoxUsers extends Fragment {
         //    sharedViewModel.selectUser(user);
         //});
 
-        RecyclerView userRecyclerView = view.findViewById(R.id.user_list);
+        userRecyclerView = view.findViewById(R.id.user_list);
         userRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         userRecyclerView.setAdapter(adapter);
 
@@ -146,6 +151,11 @@ public class ChatBoxUsers extends Fragment {
                 if (getActivity() instanceof TabChatActivity) {
                     ((TabChatActivity) getActivity()).openChatTab();
                 }
+            }
+
+            @Override
+            public void onCancel(ChatUser user) {
+                viewModel.cancelFriendRequest(user.getUserId());
             }
 
             @Override
@@ -219,6 +229,10 @@ public class ChatBoxUsers extends Fragment {
         });
         */
 
+        viewModel.getUserStateMap().observe(getViewLifecycleOwner(), stateMap -> {
+            adapter.setUserStateMap(stateMap);
+        });
+
         viewModel.getAllUsers().observe(getViewLifecycleOwner(), users -> {
             cachedUsers = users;
         });
@@ -226,7 +240,14 @@ public class ChatBoxUsers extends Fragment {
         viewModel.getFriendUsers().observe(getViewLifecycleOwner(), friends -> {
            Log.d("CHAT_BOX_USER", "Users friend = " + friends.size());
             cachedFriends = friends;
+
             adapter.submitList(friends);
+            if (pendingHighlightUserId != null) {
+                userRecyclerView.post(() -> {
+                    highlightAndScrollToUser(pendingHighlightUserId);
+                    pendingHighlightUserId = null;
+                });
+            }
         });
 
 
@@ -250,6 +271,14 @@ public class ChatBoxUsers extends Fragment {
             ).show();
         });
 
+        viewModel.getSelectedUserId().observe(getViewLifecycleOwner(), userId -> {
+            if (userId == null) return;
+            Log.d("HIGHLIGHT", "Fragment received = " + userId);
+            pendingHighlightUserId = userId;
+
+            //highlightAndScrollToUser(userId);
+        });
+
         /*
         //sharedViewModel observes 'all users'
         vm.getAllUsers().observe(getViewLifecycleOwner(), users -> {
@@ -259,6 +288,19 @@ public class ChatBoxUsers extends Fragment {
         });
         */
 
+    }
+
+    private void highlightAndScrollToUser(String userId) {
+
+        Log.d("HIGHLIGHT", "Applying highlight to = " + userId);
+
+        int position = adapter.getPositionByUserId(userId);
+        Log.d("HIGHLIGHT", "Position = " + position);
+
+        if (position == -1) return;
+
+        adapter.setHighlightedUserId(userId);
+        userRecyclerView.scrollToPosition(position);
     }
 
     private void showUsersDialog(List<ChatUser> users, Map<String, Long> cooldownMap) {
@@ -272,7 +314,7 @@ public class ChatBoxUsers extends Fragment {
         ChatAllUsersAdapter adapter = new ChatAllUsersAdapter(
                 getContext(),        // context
                 users,       // list
-                user -> {    // click logic
+                user -> {
 
                     Executors.newSingleThreadExecutor().execute(() -> {
 
@@ -293,39 +335,21 @@ public class ChatBoxUsers extends Fragment {
                             return;
                         }
 
-                        // ✅ proceed with request
+                        // ✅ ONLY now proceed (on main thread)
+                        new Handler(Looper.getMainLooper()).post(() -> {
+
+                            //viewModel.sendFriendRequest(user.getUserId());
+                            viewModel.onSendRequest(user);
+
+                            viewModel.setPending(user);
+
+                            viewModel.addFriend(user);
+                            viewModel.setCurrentFriendId(user.getUserId());
+                            vm.selectUser(user);
+
+                            dialog.dismiss();
+                        });
                     });
-
-                    /*
-                    if (!user.isFriend() && !user.isPending()) {
-
-                        // 🔥 ADD HERE
-                        Log.d("COOLDOWN", "clicked user ts=" + user.getLastRejectedAt());
-                        long now = System.currentTimeMillis();
-                        if (user.getLastRejectedAt() > 0L &&
-                                now - user.getLastRejectedAt() < REJECTED_DELAY) {
-                            Toast.makeText(getActivity(), "Try again later", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        viewModel.sendFriendRequest(user.getUserId());
-                        viewModel.setPending(user);
-                    }
-                    */
-
-                    viewModel.sendFriendRequest(user.getUserId());
-                    viewModel.setPending(user);
-
-                    viewModel.addFriend(user);
-                    viewModel.setCurrentFriendId(user.getUserId());
-                    vm.selectUser(user);//vm=ChatSharedViewModel
-
-                    //openChatTab(user);
-                    // 🔥 tell Activity to switch tab
-                    if (getActivity() instanceof TabChatActivity) {
-                        ((TabChatActivity) getActivity()).openChatTab();
-                    }
-                    dialog.dismiss();
                 },
                 cooldownMap
         );

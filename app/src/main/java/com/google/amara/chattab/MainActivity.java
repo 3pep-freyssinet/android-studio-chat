@@ -63,6 +63,7 @@ import androidx.lifecycle.ViewModelProvider;
 //import com.google.amara.authenticationretrofit.ChangePasswordActivity;
 import com.google.amara.chattab.ui.main.ChatRepository;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
+import com.google.amara.chattab.ui.main.ChatViewModel;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.FirebaseApp;
@@ -206,6 +207,7 @@ public class MainActivity extends AppCompatActivity
     private static final String FCM_UPDATED_AT = "aaa";
 
     private ChatSharedViewModel vm;
+    private ChatViewModel viewModel;
 
     public enum LastUsersDataHolder {
         INSTANCE;
@@ -328,6 +330,11 @@ public class MainActivity extends AppCompatActivity
 
         vm.startChat();
 
+        viewModel = new ViewModelProvider(this)
+                .get(ChatViewModel.class);
+
+        viewModel.fetchPendingRequests(MainApplication.myId);
+        
         /*
         vm.getUsers().observe(this, users -> {
             if (users == null) return;
@@ -754,6 +761,8 @@ public class MainActivity extends AppCompatActivity
 
 
         ChatRepository.get(getApplication()).ensureSocketConnected();
+
+        viewModel.fetchPendingRequests(MainApplication.myId);
 
         /*
         String withUserId = MainApplication.friendId; //selectedUserId; // the person I'm chatting with

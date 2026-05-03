@@ -40,7 +40,7 @@ public class ChatUser implements Serializable,
     @ColumnInfo(name = "status")
     //public int  status;          // no longer used. 0=gone, 1=connected,  2=standby, 3=blacklist
     public int         onlineStatus;    // from chat.users: online, offline, busy
-    public String      relationStatus;  // from user_friends: pending, accepted, rejected
+    public String      relationStatus;  // from user_friends: pending, accepted, rejected, canceled, blocked
 
     public int    notSeenMessagesNumber;//number of not seen messages
     public String connectedAt;          //current connection time
@@ -49,6 +49,7 @@ public class ChatUser implements Serializable,
     public String blacklistAuthor;      // the author of blacklist
 
     private Long lastRejectedAt;
+    private boolean requestSentByMe;
 
     public ChatUser() {}
 
@@ -265,5 +266,13 @@ public class ChatUser implements Serializable,
     }
     public void setLastRejectedAt(long lastRejectedAt) {
         this.lastRejectedAt = lastRejectedAt;
+    }
+
+    public boolean isRequestSentByMe() {
+        return requestSentByMe;
+    }
+
+    public void setRequestSentByMe(boolean value) {
+        this.requestSentByMe = value;
     }
 }

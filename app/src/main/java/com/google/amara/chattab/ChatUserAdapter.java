@@ -24,10 +24,13 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.google.amara.chattab.entities.UserUiState;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class ChatUserAdapter
@@ -46,6 +49,13 @@ public class ChatUserAdapter
     
     private List<ChatUser> users = new ArrayList<>();
 
+    private Map<String, UserUiState> stateMap = new HashMap<>();
+
+    public void setUserStateMap(Map<String, UserUiState> map) {
+        this.stateMap = map;
+        notifyDataSetChanged(); // simple for now
+    }
+
     public void updateList(List<ChatUser> newList) {
         chatUsers = newList;
         notifyDataSetChanged();
@@ -57,6 +67,9 @@ public class ChatUserAdapter
     // Click callback
     public interface OnUserClickListener {
         void onUserClicked(ChatUser user);
+        default void onCancel(ChatUser user) {
+            // optional
+        }
         default void onAccept(ChatUser user) {
             // optional
         }
@@ -112,8 +125,17 @@ public class ChatUserAdapter
 
         Log.d("ADAPTER", "Binding user: " + user.getUserId() +
                 " status=" + user.getOnlineStatus() +
-                " nickname=" + user.getNickname());
+                " nickname=" + user.getNickname() +
+                "sent by me = " + (user.isRequestSentByMe()));
 
+        Log.d("HIGHLIGHT", "binding " + user.getUserId() +
+                " highlighted=" + user.getUserId().equals(highlightedUserId));
+
+        if (user.getUserId().equals(highlightedUserId)) {
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFE082")); // highlight
+        } else {
+            holder.itemView.setBackgroundColor(Color.TRANSPARENT);
+        }
 
         switch(user.getOnlineStatus()) {
 
@@ -132,16 +154,39 @@ public class ChatUserAdapter
                         ColorStateList.valueOf(Color.RED));
         }
 
-        if (STATUS_PENDING.equals(user.getRelationStatus())) {
-            showAcceptReject(holder, user);
+        // reset everything
+        holder.messageBtn.setVisibility(View.GONE);
+        holder.cancelBtn.setVisibility(View.GONE);
+        holder.acceptBtn.setVisibility(View.GONE);
+        holder.rejectBtn.setVisibility(View.GONE);
+
+        UserUiState state = stateMap.get(user.getUserId());
+
+        String relation;
+        boolean sentByMe;
+
+// ✅ 1. Decide source of truth
+        if (state != null) {
+            relation = state.relationStatus;
+            sentByMe = state.sentByMe;
+        } else {
+            relation = user.getRelationStatus();   // 🔥 fallback
+            sentByMe = user.isRequestSentByMe();          // 🔥 MUST exist
         }
-        else if (STATUS_ACCEPTED.equals(user.getRelationStatus())) {
+
+        if (STATUS_PENDING.equals(relation)) {
+            if (sentByMe) {
+                showFriendCancel(holder, user);
+            } else {
+                showAcceptReject(holder, user);
+            }
+        }else if (STATUS_ACCEPTED.equals(user.getRelationStatus())) {
             showFriend(holder, user);
         }
         else if (STATUS_REJECTED.equals(user.getRelationStatus())) {
             showRejected(holder, user);
         }else {
-            showUnknown(holder, user);
+            showAddFriend(holder, user); //showUnknown(holder, user);
         }
 
         if (unread > 0) {
@@ -193,6 +238,30 @@ public class ChatUserAdapter
                 listener.onUserClicked(user);
             }
         });
+    }
+
+    private void showAddFriend(MyViewHolder holder, ChatUser user) {
+        holder.addFriendbtn.setVisibility(View.VISIBLE);
+        holder.addFriendbtn.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onUserClicked(user);
+            }
+        });
+    }
+
+    private void showFriendCancel(MyViewHolder holder, ChatUser user) {
+
+            holder.cancelBtn.setText("Cancel");
+            holder.cancelBtn.setVisibility(View.VISIBLE);
+            holder.statusText.setText("Request canceled");
+            holder.acceptBtn.setVisibility(View.GONE);
+            holder.rejectBtn.setVisibility(View.GONE);
+            holder.messageBtn.setVisibility(View.GONE);
+
+            holder.cancelBtn.setOnClickListener(v -> {
+                if (listener != null) listener.onCancel(user);
+            });
+
     }
 
     private void showRejected(MyViewHolder holder, ChatUser user) {
@@ -257,10 +326,29 @@ public class ChatUserAdapter
         });
     }
 
+    public int getPositionByUserId(String userId) {
+        for (int i = 0; i < users.size(); i++) {
+            if (users.get(i).getUserId().equals(userId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private String highlightedUserId;
+
+    public void setHighlightedUserId(String userId) {
+        this.highlightedUserId = userId;
+        Log.d("HIGHLIGHT", "Applying highlight to = " + userId);
+        notifyDataSetChanged();
+    }
+
     // ---------------- ViewHolder ----------------
 
     static class MyViewHolder extends RecyclerView.ViewHolder {
 
+
+        public View btnAction;
         TextView nickname;
         TextView timeConnection;
         TextView lastTimeConnection;
@@ -273,8 +361,9 @@ public class ChatUserAdapter
         TextView statusText;
         Button acceptBtn;
         Button rejectBtn;
+        Button cancelBtn;
         Button messageBtn;
-
+        Button addFriendbtn;
 
         MyViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -290,10 +379,9 @@ public class ChatUserAdapter
             statusText          = itemView.findViewById(R.id.status_text);
             acceptBtn           = itemView.findViewById(R.id.btn_accept);
             rejectBtn           = itemView.findViewById(R.id.btn_reject);
+            cancelBtn           = itemView.findViewById(R.id.btn_cancel);
             messageBtn          = itemView.findViewById(R.id.btn_message);
-
-
-
+            addFriendbtn        = itemView.findViewById(R.id.btn_add_friend);
         }
     }
 }

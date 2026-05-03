@@ -21,4 +21,10 @@ public interface UserUiStateDao {
 
     @Query("SELECT * FROM user_ui_state")
     LiveData<List<UserUiState>> getAll();
+
+    @Query("SELECT * FROM user_ui_state")
+    LiveData<List<UserUiState>> getAllStates();
+
+    @Query("DELETE FROM user_ui_state WHERE userId = :userId")
+    void deleteByUserId(String userId);
 }

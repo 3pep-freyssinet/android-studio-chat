@@ -13,8 +13,18 @@ public class UserUiState {
 
     public long lastRejectedAt;
 
-    public UserUiState(@NonNull String userId, long lastRejectedAt) {
-        this.userId         = userId;
+    // ✅ NEW
+    public String relationStatus; // none, pending, accepted
+    public boolean sentByMe;
+
+    public UserUiState(@NonNull String userId,
+                       long lastRejectedAt,
+                       String relationStatus,
+                       boolean sentByMe) {
+
+        this.userId = userId;
         this.lastRejectedAt = lastRejectedAt;
+        this.relationStatus = relationStatus;
+        this.sentByMe = sentByMe;
     }
 }

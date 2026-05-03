@@ -55,4 +55,7 @@ public interface UserDao {
 
     @Query("SELECT * FROM users")
     List<ChatUser> getAllUsersSync();
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void insertOrUpdate(ChatUser user);
 }

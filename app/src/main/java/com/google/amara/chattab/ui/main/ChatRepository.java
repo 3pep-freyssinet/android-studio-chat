@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -174,7 +175,40 @@ public class ChatRepository {
                     return;
                 }
 
+                JSONObject obj = null;
+                try {
+                    obj = new JSONObject(res);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+
                 // optional: parse response
+                String senderId       = obj.optString("fromUserId");
+                String receiverId     = obj.optString("toUserId");
+                String nickname       = obj.optString("fromNickname");
+                int status            = obj.optInt("fromStatus");
+                String relationStatus = obj.optString("relationStatus");
+
+                boolean sentByMe = MainApplication.myId.equals(senderId);
+
+                Log.e("API", "sentByMe: " + response.code());
+
+                /*
+                ChatUser chatUser = new ChatUser(senderId,
+                        nickname,
+                        status,
+                        relationStatus,
+                        99);
+
+                chatUser.setRequestSentByMe(sentByMe);
+                */
+
+                userUiStateDao.upsert(new UserUiState(
+                        receiverId,
+                        0,
+                        "pending",
+                        true
+                ));
             }
         });
     }
@@ -457,7 +491,76 @@ public class ChatRepository {
             }
         });
     }
-//
+
+
+public void cancelFriendRequest(String fromUserId, ChatUser user) {
+
+    Executors.newSingleThreadExecutor().execute(() -> {
+
+        // ✅ 1. IMMEDIATE UI UPDATE (Room)
+        userUiStateDao.deleteByUserId(user.getUserId());
+        // OR: set relationStatus = "none"
+
+        // ✅ 2. BACKEND CALL
+        cancelFriendRequest(user.getUserId());
+    });
+}
+
+public void cancelFriendRequest(String friendId) {
+    // call backend
+    String myId = MainApplication.myId;
+    OkHttpClient client = new OkHttpClient();
+
+    JSONObject json = new JSONObject();
+    try {
+        json.put("fromUserId", Integer.parseInt(myId));     // Alice
+        json.put("toUserId",   Integer.parseInt(friendId));   // Fanny
+    } catch (JSONException e) {
+        e.printStackTrace();
+        return;
+    }
+
+    RequestBody body = RequestBody.create(
+            json.toString(),
+            MediaType.parse("application/json; charset=utf-8")
+    );
+
+    Request request = new Request.Builder()
+            .url("https://android-chat-server.onrender.com/users/friend-cancel")
+            .post(body)
+            .build();
+
+    client.newCall(request).enqueue(new Callback() {
+
+        @Override
+        public void onFailure(Call call, IOException e) {
+            Log.e("API", "❌ Reject cancel", e);
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) throws IOException {
+
+            Log.d("API", "🚫 Friend cancel");
+
+            //String res = response.body().string();
+            try {
+                JSONObject object = new JSONObject(response.body().string());
+                boolean message = object.optBoolean("success", false);
+                if(message){
+                    // 🔥 Remove locally
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        userDao.updateRelationStatus(friendId, "none");
+                        userUiStateDao.deleteByUserId(friendId);
+                    });
+                }
+            } catch (JSONException e) {
+                Log.e("API", "❌ friend cancel", e);
+                throw new RuntimeException(e);
+            }
+        }
+    });
+}
+
 public void rejectFriend(String myId, String friendId) {
 
     OkHttpClient client = new OkHttpClient();
@@ -505,6 +608,69 @@ public void rejectFriend(String myId, String friendId) {
 
     public LiveData<List<UserUiState>> getAllUiStates() {
         return userUiStateDao.getAll();
+    }
+
+    public void fetchPendingRequests(String myId) {
+        //RequestBody requestBody = new FormBody.Builder()
+        //        .add("myId", myId)
+        //        .build();
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/fetch-pending-requests")
+                .addHeader("Authorization", "Bearer " + MainApplication.JWT_TOKEN)
+                .post(new FormBody.Builder().build())
+                .build();
+        OkHttpClient okHttpClient     = new OkHttpClient();//default.
+
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                    e.printStackTrace();
+            }
+
+            @Override
+          public void onResponse(Call call, Response response) throws IOException {
+
+              JSONArray array = null;
+              try {
+
+                  array = new JSONArray(response.body().string());
+              } catch (JSONException e) {
+                  //throw new RuntimeException(e);
+              }
+
+              //convert each element of json array to json object
+                JSONArray finalArray = array;
+
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    for (int i = 0; i < finalArray.length(); i++) {
+                        JSONObject obj = null;
+                        try {
+                            obj = finalArray.getJSONObject(i);
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        String status = obj.isNull("relationStatus") ?
+                                "none" : obj.optString("relationStatus");
+
+                        String userId = obj.optString("userId", null);
+                        if (userId == null || userId.isEmpty()) continue;
+
+                        ChatUser user = new ChatUser(
+                                userId,
+                                obj.optString("nickname"),
+                                obj.optInt("onlineStatus"),
+                                status,
+                                99
+                        );
+
+                        userDao.insertOrUpdate(user);
+                    }
+                });
+
+          }
+      });
     }
 
     public interface UserStatusListener {
@@ -1338,7 +1504,9 @@ public void rejectFriend(String myId, String friendId) {
 
                 UserUiState state = new UserUiState(
                         fromId,
-                        System.currentTimeMillis()
+                        System.currentTimeMillis(),
+                        "rejected", //UserUiState.STATUS_REJECTED,
+                        true
                 );
 
                 userUiStateDao.upsert(state);
@@ -1417,6 +1585,23 @@ public void rejectFriend(String myId, String friendId) {
         });
         */
 
+    }
+
+    public void sendFriendRequest(String fromUserId, ChatUser user) {
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+
+            // ✅ 1. IMMEDIATE UI STATE (Room)
+            userUiStateDao.upsert(new UserUiState(
+                    user.getUserId(),
+                    0,
+                    "pending",
+                    true
+            ));
+
+            // ✅ 2. NETWORK CALL
+            sendFriendRequest(fromUserId, user.getUserId());
+        });
     }
 
     private void ensureUserExists(String userId, String nickname) {

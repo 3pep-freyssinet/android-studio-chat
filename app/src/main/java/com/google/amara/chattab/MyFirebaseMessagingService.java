@@ -20,6 +20,7 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.NotificationCompat;
@@ -54,7 +55,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     }
 
     @Override
-    public void onMessageReceived(RemoteMessage remoteMessage) {
+    public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
         try {
             /*
@@ -72,6 +73,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             String senderId   = "";
             String icon       = "null";
             String messageId  = "";
+            String type       = "";
 
         // Check if the message contains notification payload
         if (remoteMessage.getData().get("notification") != null) {
@@ -87,12 +89,13 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             icon        = remoteMessage.getData().get("profileImageUrl");
             senderId    = remoteMessage.getData().get("senderId");
             messageId   = remoteMessage.getData().get("messageId");
+            type        = remoteMessage.getData().get("type");
 
             // Display the notification
 
-            assert body != null;
+            body = (body != null) ? body : "No message";
             if (!body.isEmpty()) {
-                sendNotification(title, senderId, senderName, messageId, body);
+                sendNotification(type, title, senderId, senderName, messageId, body);
 
                 Bitmap bitmap = BitmapFactory.decodeResource(
                         getResources(),
@@ -123,10 +126,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
-    private void sendNotification(String title, String senderId, String senderName,
+    private void sendNotification(String type, String title, String senderId, String senderName,
                                   String messageId, String messageBody) {
         // 0. create intent
         Intent intent = new Intent(this, TabChatActivity.class);
+        intent.putExtra("type", type);
         intent.putExtra("senderId", senderId);
         intent.putExtra("senderName", senderName);
         intent.putExtra("messageId", messageId);

@@ -57,10 +57,10 @@ public class MainApplication extends Application{
     public static final boolean FCM = false; ;
 
     //Alice - redmi
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQ5NywidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzcwMTcwMjUsImV4cCI6MTc3NzEwMzQyNX0.eO2D4ONURtimHXTnI1LWqftqXh9HpJ8zR0skPHy8rlQ";
-    //public static String myId     = "497";
-    //public static String friendId = "498";
-    //public static final int senderAvatarId = R.drawable.amy_jones;
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUxNSwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3Nzc4MjMwNTcsImV4cCI6MTc3NzkwOTQ1N30.fe8QyLZgtzNOhtOfg4J3OcDpeEFnuWbNF4eGcQHl6sQ";
+    public static String myId     = "515";
+    public static String friendId = "516";
+    public static final int senderAvatarId = R.drawable.amy_jones;
 
     private static final String TAG         = "SocketTestActivity";
     public static String currentChatUserId; //set when a user tapes an avatar to open conversation
@@ -68,10 +68,10 @@ public class MainApplication extends Application{
     public static String pendingChatUserId  = null;
 
     //Fanny- poco
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQ5OCwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzcwMTcxMDMsImV4cCI6MTc3NzEwMzUwM30.OomhVr5ApU3wjbHFfh6KIGpFT30Bp3kfGwRJAztdfbI";
-    public static String myId     = "498";
-    public static String friendId = "497";
-    public static final int senderAvatarId = R.drawable.eugene_lee;
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUxNiwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3Nzc4MjMxMjQsImV4cCI6MTc3NzkwOTUyNH0.wHun56qTcHM3E2IAGGW8ERp4F2ipc0kE-dFz0V7ntjw";
+    //public static String myId     = "516";
+    //public static String friendId = "515";
+    //public static final int senderAvatarId = R.drawable.eugene_lee;
 
     //Karine- Harry
     //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQ0OCwidXNlcm5hbWUiOiJLYXJpbmUxIiwiaWF0IjoxNzc2MjY4MjE4LCJleHAiOjE3NzYzNTQ2MTh9.U-1TM2MlCL7fMynA3WjZIAlB12I1NUQTt3fG_d9h9L4";

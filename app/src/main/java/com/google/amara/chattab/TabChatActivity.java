@@ -160,9 +160,9 @@ public class TabChatActivity extends AppCompatActivity {
         vm.loadUsers();
 
         //observe the selected user
-        vm.getSelectedUser().observe(this, user -> {
+        chatViewModel.getSelectedUser().observe(this, user -> {
             if (user != null && pendingMessageId != null) {
-                vm.requestScrollToMessage(pendingMessageId);
+                chatViewModel.requestScrollToMessage(pendingMessageId);
                 pendingMessageId = null;
             }
         });
@@ -171,27 +171,30 @@ public class TabChatActivity extends AppCompatActivity {
         // Then we do a check. I the getIntent contains 'senderId' as an extra, we are coming from a notification.
 
         Intent intent = getIntent();
-        boolean isFromNotification = intent != null && intent.hasExtra("senderId");
-        int initialTab = isFromNotification ? 1 : 0;
+
+        String type = (intent != null) ? intent.getStringExtra("type") : null;
 
         viewPager.setAdapter(new ChatPagerAdapter(this));
 
-        // 👇 force Tab 1 BEFORE mediator
+        // default → Users tab
         viewPager.setCurrentItem(0, false);
 
         new TabLayoutMediator(tabLayout, viewPager,
-                (tab, position) -> {
-                    tab.setText(position == 0 ? "Users" : "Chat");
-                }
+                (tab, position) -> tab.setText(position == 0 ? "Users" : "Chat")
         ).attach();
 
-        if (isFromNotification) {
+        if (type != null) {
             String senderId = intent.getStringExtra("senderId");
-            String messageId = intent.getStringExtra("messageId");
-            handleNotificationNavigation(senderId, messageId );
+            chatViewModel.selectUserById(senderId);
+
+            if ("message".equals(type)) {
+                String messageId = intent.getStringExtra("messageId");
+                handleMessageNavigation(senderId, messageId);
+            }
+            else if ("friend_request".equals(type)) {
+                handleFriendRequestNavigation(senderId);
+            }
         }
-
-
 
         //load the user friends
 
@@ -207,6 +210,21 @@ public class TabChatActivity extends AppCompatActivity {
             }
         });
         */
+    }
+
+    private void handleMessageNavigation(String senderId, String messageId) {
+
+        viewPager.setCurrentItem(1, true); // Chat tab
+
+        vm.setPendingMessageId(messageId);
+        vm.selectUserById(senderId);
+    }
+
+    private void handleFriendRequestNavigation(String senderId) {
+
+
+        viewPager.setCurrentItem(0, true); // Users tab
+        chatViewModel.openPendingRequest(senderId);
     }
 
     @Override

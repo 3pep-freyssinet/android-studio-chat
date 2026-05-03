@@ -1,6 +1,7 @@
 package com.google.amara.chattab.ui.main;
 
 import android.app.Application;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -14,10 +15,14 @@ import com.google.amara.chattab.ChatMessage;
 import com.google.amara.chattab.ChatUser;
 import com.google.amara.chattab.MainApplication;
 import com.google.amara.chattab.SocketManager;
+import com.google.amara.chattab.dao.AppDatabase;
+import com.google.amara.chattab.dao.UserUiStateDao;
 import com.google.amara.chattab.entities.UserUiState;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public class ChatViewModel extends AndroidViewModel {
@@ -31,15 +36,40 @@ public class ChatViewModel extends AndroidViewModel {
 
     private final MutableLiveData<List<ChatUser>> usersLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<ChatUser>> allUsers      = new MutableLiveData<>();
-    private final MutableLiveData<ChatUser>        selectedUser = new MutableLiveData<>();
+    private final MutableLiveData<String>     selectedUserId  = new MutableLiveData<>();
+    private final MutableLiveData<ChatUser>     selectedUser    = new MutableLiveData<>();
     private final MutableLiveData<String> currentFriendId       = new MutableLiveData<>();
+    private final MutableLiveData<Map<Long, UserUiState>> userStates = new MutableLiveData<>(new HashMap<>());
 
+    private LiveData<Map<String, UserUiState>> userStateMap;
 
 
     //constructor
+    /*
     public ChatViewModel(@NonNull Application application) {
         super(application);
         repo = ChatRepository.get(application);
+    }
+    */
+
+    public ChatViewModel(@NonNull Application application) {
+        super(application);
+        repo = ChatRepository.get(application);
+
+        UserUiStateDao dao = AppDatabase
+                .getInstance(application)
+                .userUiStateDao();
+
+        userStateMap = Transformations.map(
+                dao.getAllStates(),
+                list -> {
+                    Map<String, UserUiState> map = new HashMap<>();
+                    for (UserUiState s : list) {
+                        map.put(s.userId, s);
+                    }
+                    return map;
+                }
+        );
     }
 
     public LiveData<List<ChatUser>> getAllFriendUsers() {
@@ -111,6 +141,16 @@ public class ChatViewModel extends AndroidViewModel {
 
     public void addFriend(ChatUser user) {
         repo.addFriend(user);
+    }
+
+    public void onSendRequest(ChatUser user) {
+        String fromUserId = SocketManager.getUserId();
+        repo.sendFriendRequest(fromUserId, user);
+    }
+
+    public void onCancelRequest(ChatUser user) {
+        String fromUserId = SocketManager.getUserId();
+        repo.cancelFriendRequest(fromUserId, user);
     }
 
     public void sendFriendRequest(String toUserId) {
@@ -192,6 +232,35 @@ public class ChatViewModel extends AndroidViewModel {
 
             repo.userDao.insert(pendingUser);
         });
+    }
+
+    public void fetchPendingRequests(String myId) {
+        repo.fetchPendingRequests(myId);
+    }
+
+    public LiveData<String> getSelectedUserId() {
+        return selectedUserId;
+    }
+
+    public void selectUserById(String userId) {
+        Log.d("HIGHLIGHT", "VM selectUserById = " + userId);
+        selectedUserId.postValue(userId);
+    }
+
+    public void openPendingRequest(String userId) {
+        //get pending requests
+        fetchPendingRequests(MainApplication.myId);
+
+        // optional: highlight / scroll to user
+        selectUserById(userId);
+    }
+
+    public void cancelFriendRequest(String userId) {
+        repo.cancelFriendRequest(userId);
+    }
+
+    public LiveData<Map<String, UserUiState>> getUserStateMap() {
+        return userStateMap;
     }
 }
 
