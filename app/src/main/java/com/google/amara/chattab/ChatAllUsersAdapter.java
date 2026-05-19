@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.google.amara.chattab.entities.UserUiState;
 import com.google.amara.chattab.ui.main.ChatViewModel;
 
 import java.util.ArrayList;
@@ -51,6 +52,11 @@ public class ChatAllUsersAdapter
 
     public void updateList(List<ChatUser> newList) {
         chatAllUsers = newList;
+        notifyDataSetChanged();
+    }
+
+    public void setUiStateMap(Map<String, UserUiState> map) {
+        this.cooldownMap = map;
         notifyDataSetChanged();
     }
 

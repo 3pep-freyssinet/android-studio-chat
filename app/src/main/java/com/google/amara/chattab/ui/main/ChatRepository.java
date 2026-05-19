@@ -487,6 +487,13 @@ public class ChatRepository {
                 // 🔥 Update local DB
                 Executors.newSingleThreadExecutor().execute(() -> {
                     userDao.updateRelationStatus(friendId, "accepted");
+                    //userUiStateDao.deleteByUserId(friendId);
+                    userUiStateDao.upsert(new UserUiState(
+                            friendId, //user.getUserId(),
+                            0,
+                            "accepted",
+                            true
+                    ));
                 });
             }
         });
@@ -549,7 +556,11 @@ public void cancelFriendRequest(String friendId) {
                 if(message){
                     // 🔥 Remove locally
                     Executors.newSingleThreadExecutor().execute(() -> {
-                        userDao.updateRelationStatus(friendId, "none");
+                        //userDao.updateRelationStatus(friendId, "none");
+                        // ✅ remove relationship row
+                        userDao.deleteById(friendId);
+
+                        // ✅ remove temporary UI state
                         userUiStateDao.deleteByUserId(friendId);
                     });
                 }
@@ -599,6 +610,7 @@ public void rejectFriend(String myId, String friendId) {
             // 🔥 Remove locally
             Executors.newSingleThreadExecutor().execute(() -> {
                 userDao.deleteById(friendId);
+                userUiStateDao.deleteByUserId(friendId);
                 // optional:
                 // messageDao.deleteConversation(myId, friendId);
             });
@@ -640,9 +652,11 @@ public void rejectFriend(String myId, String friendId) {
               }
 
               //convert each element of json array to json object
-                JSONArray finalArray = array;
+              JSONArray finalArray = array;
 
-                Executors.newSingleThreadExecutor().execute(() -> {
+              if(finalArray == null)return;
+
+              Executors.newSingleThreadExecutor().execute(() -> {
                     for (int i = 0; i < finalArray.length(); i++) {
                         JSONObject obj = null;
                         try {
@@ -671,6 +685,72 @@ public void rejectFriend(String myId, String friendId) {
 
           }
       });
+    }
+
+    public void loadAllUsers() {
+        loadAllUsersFromApi();
+    }
+
+    public void blockUser(String blockerId, String blockedUserId, long durationMs) {
+
+        OkHttpClient client = new OkHttpClient();
+
+        RequestBody body = new FormBody.Builder()
+                .add("blockerId", blockerId)
+                .add("blockedId", blockedUserId)
+                .add("durationMs", String.valueOf(durationMs))
+                .build();
+
+        Request request = new Request.Builder()
+                .url("https://android-chat-server.onrender.com/users/friends-block")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(
+                    Call call,
+                    IOException e
+            ) {
+                Log.e("BLOCK", "❌ failed", e);
+            }
+
+            @Override
+            public void onResponse(
+                    Call call,
+                    Response response
+            ) throws IOException {
+
+                Log.d("BLOCK", "✅ user blocked");
+
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    JSONObject object =
+                            null;
+                    try {
+                        object = new JSONObject(response.body().string());
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    long blockedUntil =
+                            object.optLong("blockedUntil", 0);
+                    Executors.newSingleThreadExecutor().execute(() -> {
+
+                        userDao.setMessagingBlocked(
+                                blockedUserId,
+                                false,
+                                true,
+                                blockedUntil);
+
+                        userUiStateDao.setBlocked(blockedUserId, true, blockedUntil);
+
+                    });
+                });
+            }
+        });
     }
 
     public interface UserStatusListener {
@@ -1500,16 +1580,9 @@ public void rejectFriend(String myId, String friendId) {
             Log.d("SOCKET", "❌ Rejected by " + fromId);
 
             Executors.newSingleThreadExecutor().execute(() -> {
-                userDao.setRejected(fromId);
+                userDao.deleteById(fromId);
 
-                UserUiState state = new UserUiState(
-                        fromId,
-                        System.currentTimeMillis(),
-                        "rejected", //UserUiState.STATUS_REJECTED,
-                        true
-                );
-
-                userUiStateDao.upsert(state);
+                userUiStateDao.deleteByUserId(fromId);
             });
 
             // 🔥 emit event (Repository level)
@@ -1545,6 +1618,8 @@ public void rejectFriend(String myId, String friendId) {
                     Log.d("SOCKET", "✅ Accepted : update user. fromId =  " + fromId);
                     // 🔥 UPDATE USER
                     userDao.setAccepted(fromId);
+                    //userUiStateDao.deleteByUserId(fromId);
+                    userUiStateDao.upsert(new UserUiState(fromId, 0, "accepted", false));
 
                 }
             });
@@ -1552,7 +1627,42 @@ public void rejectFriend(String myId, String friendId) {
             acceptEvents.postValue(fromId);
         });
 
+        socket.on("friend:request_canceled", args -> {
 
+            JSONObject data = (JSONObject) args[0];
+
+            String fromId   = data.optString("fromUserId");   // Alice
+            //String nickname = data.optString("nickname", "Unknown");
+
+            Log.d("SOCKET", "✅ canceled fromId : " + fromId);
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+
+                userDao.deleteById(fromId);
+
+                // optional cleanup
+                userUiStateDao.deleteByUserId(fromId);
+            });
+        });
+
+        socket.on("friend:blocked", args -> {
+
+            JSONObject data = (JSONObject) args[0];
+            String fromId   = data.optString("fromUserId");
+
+            long blockedUntil =
+                    data.optLong("expiresAt", 0);
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+
+                userDao.setBlocked(
+                        fromId,
+                        true,
+                        blockedUntil,
+                        false
+                );
+            });
+        });
 
         /*
         socket.on("typing:stop", args -> {
@@ -1591,7 +1701,13 @@ public void rejectFriend(String myId, String friendId) {
 
         Executors.newSingleThreadExecutor().execute(() -> {
 
-            // ✅ 1. IMMEDIATE UI STATE (Room)
+            // ✅ 1. ensure user exists in users table
+            user.setRelationStatus("pending");
+            user.setRequestSentByMe(true);
+            Log.d("FRIENDS", "sendFriendRequest, userId = " + user.getUserId());
+            userDao.insert(user);
+
+            // ✅ 2. UI override state
             userUiStateDao.upsert(new UserUiState(
                     user.getUserId(),
                     0,
@@ -1599,7 +1715,7 @@ public void rejectFriend(String myId, String friendId) {
                     true
             ));
 
-            // ✅ 2. NETWORK CALL
+            // ✅ 3. network
             sendFriendRequest(fromUserId, user.getUserId());
         });
     }

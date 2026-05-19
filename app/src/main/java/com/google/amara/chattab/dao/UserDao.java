@@ -13,7 +13,11 @@ import java.util.List;
 @Dao
 public interface UserDao {
 
-    @Query("SELECT * FROM users ORDER BY nickname")
+    @Query("""
+    SELECT * FROM users
+    WHERE relationStatus IN ('pending', 'accepted')
+    ORDER BY nickname
+    """)
     LiveData<List<ChatUser>> getFriendUsers();
 
 
@@ -58,4 +62,37 @@ public interface UserDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertOrUpdate(ChatUser user);
+
+    @Query("UPDATE users SET canMessage = :canMessage WHERE userId = :userId")
+    void setCanMessage(String userId, boolean canMessage);
+
+    @Query("""
+UPDATE users
+SET
+    blocked = :blocked,
+    blockedUntil = :blockedUntil,
+    canMessage = :canMessage
+WHERE userId = :userId
+""")
+    void setBlocked(
+            String userId,
+            boolean blocked,
+            long blockedUntil,
+            boolean canMessage
+    );
+
+    @Query("""
+    UPDATE users
+    SET
+    canMessage = :canMessage,
+    isBlocked = :isBlocked,
+    blockedUntil = :blockedUntil
+    WHERE userId = :userId
+    """)
+    void setMessagingBlocked(
+        String userId,
+        boolean canMessage,
+        boolean isBlocked,
+        long blockedUntil
+    );
 }

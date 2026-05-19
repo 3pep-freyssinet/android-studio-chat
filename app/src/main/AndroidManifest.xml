@@ -81,6 +81,7 @@
         </activity>
         <activity android:name=".TabChatActivity"> </activity>
         <activity android:name=".ImageViewerActivity"> </activity>
+        <activity android:name=".FindFriendsActivity"> </activity>
         </application>
 </manifest>
 <!--

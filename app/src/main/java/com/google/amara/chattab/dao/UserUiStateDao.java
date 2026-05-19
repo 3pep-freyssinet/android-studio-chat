@@ -27,4 +27,16 @@ public interface UserUiStateDao {
 
     @Query("DELETE FROM user_ui_state WHERE userId = :userId")
     void deleteByUserId(String userId);
+
+    @Query("""
+    UPDATE users
+    SET blocked = :blocked,
+        blockedUntil = :blockedUntil
+    WHERE userId = :userId
+    """)
+    void setBlocked(
+            String userId,
+            boolean blocked,
+            long blockedUntil
+    );
 }

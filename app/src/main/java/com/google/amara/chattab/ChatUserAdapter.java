@@ -1,20 +1,12 @@
 package com.google.amara.chattab;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.ColorStateList;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 
 import androidx.annotation.NonNull;
-import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.graphics.Color;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.GradientDrawable;
-import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,8 +18,8 @@ import android.widget.TextView;
 import com.bumptech.glide.Glide;
 import com.google.amara.chattab.entities.UserUiState;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,14 +38,34 @@ public class ChatUserAdapter
     public static final String STATUS_PENDING  = "pending";
     public static final String STATUS_ACCEPTED = "accepted";
     private static final String STATUS_REJECTED= "rejected";
-    
+
+    public Map<String, UserUiState> getUserStateMap() {
+        return stateMap;
+    }
+
+    public List<ChatUser> getCurrentList() {
+        return chatUsers;
+    }
+
+    public enum UserState {
+        NONE,
+        PENDING_SENT,
+        PENDING_RECEIVED,
+        FRIEND
+    }
+    private UserState state;
+
     private List<ChatUser> users = new ArrayList<>();
 
     private Map<String, UserUiState> stateMap = new HashMap<>();
 
     public void setUserStateMap(Map<String, UserUiState> map) {
-        this.stateMap = map;
-        notifyDataSetChanged(); // simple for now
+        if (map == null) {
+            this.stateMap = new HashMap<>();
+        } else {
+            this.stateMap = map;
+        }
+        notifyDataSetChanged();
     }
 
     public void updateList(List<ChatUser> newList) {
@@ -77,6 +89,12 @@ public class ChatUserAdapter
         default void onReject(ChatUser user) {
             // optional
         }
+
+        void onAddFriend(ChatUser user);
+
+        void onMessage(ChatUser user);
+
+        void onLongPress(ChatUser user);
     }
 
     private OnUserClickListener listener;
@@ -160,34 +178,76 @@ public class ChatUserAdapter
         holder.acceptBtn.setVisibility(View.GONE);
         holder.rejectBtn.setVisibility(View.GONE);
 
-        UserUiState state = stateMap.get(user.getUserId());
+        holder.statusText.setText(null);
+        holder.swipeHint.setText(null);
 
-        String relation;
-        boolean sentByMe;
+        //get the state
+        UserUiState s = stateMap.get(user.getUserId());
 
-// ✅ 1. Decide source of truth
-        if (state != null) {
-            relation = state.relationStatus;
-            sentByMe = state.sentByMe;
+        String relation  = user.getRelationStatus();
+        boolean sentByMe = user.isRequestSentByMe();
+
+        if (s != null) {
+            relation = s.relationStatus;
+            sentByMe = s.sentByMe;
+        }
+        
+        if ("accepted".equals(relation)) {
+            state = UserState.FRIEND;
+        } else if ("pending".equals(relation)) {
+            state = sentByMe ? UserState.PENDING_SENT : UserState.PENDING_RECEIVED;
         } else {
-            relation = user.getRelationStatus();   // 🔥 fallback
-            sentByMe = user.isRequestSentByMe();          // 🔥 MUST exist
+            state = UserState.NONE;
         }
 
-        if (STATUS_PENDING.equals(relation)) {
+        //update 'textStatus'
+        if ("accepted".equals(relation)) {
+
+            holder.statusText.setText("Friend");
+
+        } else if ("pending".equals(relation)) {
+
             if (sentByMe) {
-                showFriendCancel(holder, user);
+                holder.statusText.setText("Requested");
+                holder.statusText.setTextColor(Color.rgb(255,165,0));
+                holder.swipeHint.setText("Swipe left to cancel : ← Cancel");
             } else {
-                showAcceptReject(holder, user);
+                holder.statusText.setText("Wants to connect");
+                holder.swipeHint.setText("Swipe to respond : ← Reject    Accept →");
             }
-        }else if (STATUS_ACCEPTED.equals(user.getRelationStatus())) {
-            showFriend(holder, user);
+
+        } else {
+
+            holder.statusText.setText("");
         }
-        else if (STATUS_REJECTED.equals(user.getRelationStatus())) {
-            showRejected(holder, user);
-        }else {
-            showAddFriend(holder, user); //showUnknown(holder, user);
-        }
+
+        //set an action
+        holder.itemView.setOnClickListener(v -> {
+
+            switch (state) {
+
+                case NONE:
+                    listener.onAddFriend(user);
+                    break;
+
+                case PENDING_SENT:
+                    listener.onCancel(user);
+                    break;
+
+                case PENDING_RECEIVED:
+                    listener.onAccept(user);
+                    break;
+
+                case FRIEND:
+                    listener.onMessage(user);
+                    break;
+            }
+        });
+
+        holder.itemView.setOnLongClickListener(v -> {
+            listener.onLongPress(user);
+            return true;
+        });
 
         if (unread > 0) {
             holder.unreadBadge.setVisibility(View.VISIBLE);
@@ -207,7 +267,7 @@ public class ChatUserAdapter
         }
 
         holder.nickname.setText(user.getNickname());
-        holder.statusText.setText(user.getRelationStatus());
+        //holder.statusText.setText(user.getRelationStatus());
         holder.timeConnection.setText(
                 "Connection at: " + user.getConnectedAt()
         );
@@ -343,6 +403,25 @@ public class ChatUserAdapter
         notifyDataSetChanged();
     }
 
+    //------------------UserState-------
+    /*
+    static class UserState{
+        static UserState FRIEND;
+        static UserState PENDING_SENT;
+        static UserState PENDING_RECEIVED;
+        static UserState NONE;
+     }
+     */
+    
+        /*
+        public enum UserState {
+        NONE,
+        PENDING_SENT,
+        PENDING_RECEIVED,
+        FRIEND
+        }
+         */
+   
     // ---------------- ViewHolder ----------------
 
     static class MyViewHolder extends RecyclerView.ViewHolder {
@@ -358,6 +437,7 @@ public class ChatUserAdapter
         TextView notSeenMessages;
         TextView unreadBadge;
 
+        TextView swipeHint;
         TextView statusText;
         Button acceptBtn;
         Button rejectBtn;
@@ -377,6 +457,7 @@ public class ChatUserAdapter
             badge               = itemView.findViewById(R.id.badge);
 
             statusText          = itemView.findViewById(R.id.status_text);
+            swipeHint           = itemView.findViewById(R.id.swipe_hint);
             acceptBtn           = itemView.findViewById(R.id.btn_accept);
             rejectBtn           = itemView.findViewById(R.id.btn_reject);
             cancelBtn           = itemView.findViewById(R.id.btn_cancel);

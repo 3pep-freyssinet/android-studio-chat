@@ -36,6 +36,7 @@ import com.bumptech.glide.Glide;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
 import com.google.amara.chattab.ui.main.ChatViewModel;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.io.File;
 import java.io.IOException;
@@ -75,6 +76,8 @@ public class ChatBoxMessage extends Fragment {
     private RecyclerView messageRecycler;
     private ImageView sendButton, attachButton, imageUpload, previewImage, btnRemoveImage;
     private EditText messageInput;
+    private TextInputLayout messageInputLayout;
+    private ColorStateList defaultHintColors;
     private TextView emptyView;
     private LinearLayout pendingLayout, rejectedLayout;
     private TextView pendingStatus, rejectedStatus;
@@ -175,7 +178,7 @@ public class ChatBoxMessage extends Fragment {
         sendButton      = view.findViewById(R.id.iv_send);
         imageUpload     = view.findViewById(R.id.iv_attach);
         messageInput    = view.findViewById(R.id.edt_message);
-
+        messageInputLayout = view.findViewById(R.id.message_input_layout);
         previewImage    = view.findViewById(R.id.preview_image);
         btnRemoveImage  = view.findViewById(R.id.btn_remove_image);
 
@@ -209,7 +212,34 @@ public class ChatBoxMessage extends Fragment {
             return insets;
         });
 
-        ///////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////
+
+        //Is user blocked?
+        String friendId__  = chatViewModel.getCurrentFriendId().getValue();
+        ChatUser chatUser  = chatViewModel.getUserById(friendId__).getValue();
+
+        if(chatUser != null && chatUser.getBlocked()){
+            //user is blocked: disable input, send
+
+                long remaining =
+                        chatUser.getBlockedUntil()
+                                - System.currentTimeMillis();
+
+                sendButton.setEnabled(false);
+                messageInput.setEnabled(false);
+                imageUpload.setEnabled(false);
+                btnRemoveImage.setEnabled(false);
+                previewImage.setEnabled(false);
+                attachButton.setEnabled(false);
+
+                messageInputLayout.setHintTextColor(
+                        ColorStateList.valueOf(Color.RED));
+                messageInputLayout.setHint(
+                        "You cannot message " + chatUser.getNickname() + " for : " +  formatLongTimeToString(remaining)
+                );
+        }
+        ////////////////////////////////////////////////////////////////////////////////////////////
+
         //update 'header'
         sharedViewModel.getSelectedUser().observe(getViewLifecycleOwner(), selectedUser -> {
 
@@ -329,11 +359,29 @@ public class ChatBoxMessage extends Fragment {
         chatViewModel.loadInitialMessages();
 
         //When the user enter 'ChatBoxMessage'
+        chatViewModel.getCurrentFriendId()
+                .observe(getViewLifecycleOwner(), friendId -> {
+
+                    if (friendId == null) return;
+
+                    Log.d(
+                            "CHAT_BOX_MESSAGE",
+                            "Observe user : " + friendId
+                    );
+
+                    observeUser(friendId);
+                });
+
+        /*
         String friendId = chatViewModel.getCurrentFriendId().getValue();
 
+        Log.d("CHAT_BOX_MESSAGE", "Observe user : " + friendId );
+
         if (friendId != null) {
+            Log.d("CHAT_BOX_MESSAGE", "Observe user : " + friendId );
             observeUser(friendId);
         }
+        */
 
 
         chatViewModel.getAcceptEvents().observe(getViewLifecycleOwner(), userId -> {
@@ -375,7 +423,7 @@ public class ChatBoxMessage extends Fragment {
         chatViewModel.getCurrentFriendId()
                 .observe(getViewLifecycleOwner(), friendId_ -> {
 
-                    Log.d("MESSAGES", "friendId = " + friendId_);
+                    Log.d("CHAT_BOX_MESSAGE", "getCurrentFriendId : friendId = " + friendId_);
 
                     if (friendId_ == null) return;
 
@@ -384,7 +432,7 @@ public class ChatBoxMessage extends Fragment {
                     chatViewModel.getMessages(myId, friendId_)
                             .observe(getViewLifecycleOwner(), messages -> {
 
-                                Log.d("MESSAGES", "Messages = " + messages.size() + " friendId = " + friendId);
+                                Log.d("CHAT_BOX_MESSAGE", "getCurrentFriendId : Nb messages = " + messages.size() + " friendId = " + friendId_);
                                 adapter.submitList(messages);
                                 messageRecycler.post(() -> messageRecycler.scrollToPosition(adapter.getItemCount() - 1));
                             });
@@ -610,11 +658,12 @@ public class ChatBoxMessage extends Fragment {
             }); // 🔴 callback end
         });
         */
+
         //observe selected user in tab 0.
         chatViewModel.getSelectedUser().observe(getViewLifecycleOwner(), user -> {
             if (user == null) return;
 
-            Log.d("CHAT", "Opening chat with: " + user.getNickname());
+            Log.d("CHAT_BOX_MESSAGE", "getSelectedUser : Opening chat with: " + user.getNickname());
 
             String myId__ = SocketManager.getUserId();
 
@@ -821,9 +870,8 @@ public class ChatBoxMessage extends Fragment {
 
             //Get 'friendId' and emit 'emit("typing:stop"'.
             chatViewModel.getCurrentFriendId().observe(getViewLifecycleOwner(), friendId_ -> {
-                Log.d("CHAT_BOX_MESSAGE", "Here 3");
+                Log.d("CHAT_BOX_MESSAGE", "getCurrentFriendId");
                 if (friendId_ == null) return;
-                Log.d("CHAT_BOX_MESSAGE", "Here 4");
                 String myId = SocketManager.getUserId();
 
                 SocketManager.getSocket().emit("typing:stop",
@@ -854,6 +902,9 @@ public class ChatBoxMessage extends Fragment {
         chatViewModel.getUserById(userId).observe(getViewLifecycleOwner(), user -> {
 
             if (user == null) return;
+
+            Log.d("CHAT_BOX_MESSAGE", "observeUser_");
+
             TextView statusText = view.findViewById(R.id.status_text);
             String status = user.getRelationStatus();
 
@@ -872,12 +923,107 @@ public class ChatBoxMessage extends Fragment {
         chatViewModel.getUserById(friendId)
                 .observe(getViewLifecycleOwner(), user -> {
 
-                    if (user == null) {
-                        Log.d("CHAT", "User removed → close or reset UI");
+                    // --------------------------------
+                    // user removed (blocked / deleted)
+                    // --------------------------------
 
-                        showUnknownUI();   // or close chat
+                    if (user == null) {
+
+                        Log.d(
+                                "CHAT_BOX_MESSAGE",
+                                "observeUser User removed → disable messaging"
+                        );
+                        /*
+
+                        //long remaining =
+                        //        user.getBlockedUntil()
+                        //                - System.currentTimeMillis();
+
+                        sendButton.setEnabled(false);
+                        messageInput.setEnabled(false);
+                        imageUpload.setEnabled(false);
+                        btnRemoveImage.setEnabled(false);
+                        previewImage.setEnabled(false);
+                        attachButton.setEnabled(false);
+
+                        defaultHintColors =
+                                messageInputLayout.getDefaultHintTextColor();
+
+                        messageInputLayout.setHintTextColor(
+                                ColorStateList.valueOf(Color.RED));
+                        //messageInputLayout.setHint(
+                        //        "You cannot message this user for : " +  formatLongTimeToString(remaining)
+                        //);
+
+                        messageInputLayout.setHint(
+                                "You cannot message this user"
+                        );
+                        
+                        //blockedBanner.setVisibility(View.VISIBLE);
+                        */
+
                         return;
                     }
+
+                    Log.d("CHAT_BOX_MESSAGE", "observeUser User not removed" );
+
+                    //hint block message
+                    defaultHintColors =
+                            messageInputLayout.getDefaultHintTextColor();
+
+                    //user is blocked
+                    if(user.getBlocked()){
+                        long remaining =
+                                user.getBlockedUntil()
+                                        - System.currentTimeMillis();
+
+                        sendButton.setEnabled(false);
+                        messageInput.setEnabled(false);
+                        imageUpload.setEnabled(false);
+                        btnRemoveImage.setEnabled(false);
+                        previewImage.setEnabled(false);
+                        attachButton.setEnabled(false);
+
+                        messageInputLayout.setHintTextColor(
+                                ColorStateList.valueOf(Color.RED));
+                        messageInputLayout.setHint(
+                                "You cannot message " + user.getNickname() + " for : " +  formatLongTimeToString(remaining)
+                        );
+
+                        if (user.isPending()) {
+                            showPendingUI();
+                        } else if (user.isAccepted()) {
+                            showChatUI();
+                        } else if (user.isRejected()) {
+                            showRejectedUI();
+                        }
+                        return;
+                    }
+
+                    // --------------------------------
+                    // normal active conversation
+                    // --------------------------------
+
+
+                    //restore the hint color
+                    messageInputLayout.setHintTextColor(
+                            defaultHintColors);
+
+                    messageInputLayout.setHint("Message");
+                    sendButton.setEnabled(true);
+                    messageInput.setEnabled(true);
+                    imageUpload.setEnabled(true);
+                    btnRemoveImage.setEnabled(true);
+                    previewImage.setEnabled(true);
+                    attachButton.setEnabled(true);
+
+
+                    //blockedBanner.setVisibility(View.GONE);
+
+                    //user is blocked
+                    //boolean canMessage = user.canMessage();
+                    //sendButton.setEnabled(canMessage);
+                    //messageInput.setEnabled(canMessage);
 
                     if (user.isPending()) {
                         showPendingUI();
@@ -891,9 +1037,7 @@ public class ChatBoxMessage extends Fragment {
 
 
 
-    private void showUnknownUI() {
-
-    }
+    private void showUnknownUI() {}
 
     private void showRejectedUI() {
 
@@ -1135,6 +1279,25 @@ public class ChatBoxMessage extends Fragment {
         }
 
         return result;
+    }
+
+    private String formatLongTimeToString(long millis) {
+
+        long minutes = millis / 60000;
+
+        if (minutes < 60) {
+            return minutes + " minutes";
+        }
+
+        long hours = minutes / 60;
+
+        if (hours < 24) {
+            return hours + " hours";
+        }
+
+        long days = hours / 24;
+
+        return days + " days";
     }
 
     private String formatDateHeader(String dateStr) {

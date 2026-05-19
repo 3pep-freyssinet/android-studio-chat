@@ -54,12 +54,12 @@ public class MainApplication extends Application{
     private int activityReferences = 0;
     private boolean isActivityChangingConfigurations = false;
 
-    public static final boolean FCM = false; ;
+    public static final boolean FCM = true; ;
 
     //Alice - redmi
-    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUxNSwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3Nzc4MjMwNTcsImV4cCI6MTc3NzkwOTQ1N30.fe8QyLZgtzNOhtOfg4J3OcDpeEFnuWbNF4eGcQHl6sQ";
-    public static String myId     = "515";
-    public static String friendId = "516";
+    public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjU3OCwidXNlcm5hbWUiOiJBbGljZTEiLCJpYXQiOjE3NzkyMDUxMjgsImV4cCI6MTc3OTI5MTUyOH0.SmcYNK80eTH72w-VhrZ6-_Zzd1Q8HK23mDEAH7i5b6Y";
+    public static String myId     = "578";
+    public static String friendId = "579";
     public static final int senderAvatarId = R.drawable.amy_jones;
 
     private static final String TAG         = "SocketTestActivity";
@@ -68,9 +68,9 @@ public class MainApplication extends Application{
     public static String pendingChatUserId  = null;
 
     //Fanny- poco
-    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUxNiwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3Nzc4MjMxMjQsImV4cCI6MTc3NzkwOTUyNH0.wHun56qTcHM3E2IAGGW8ERp4F2ipc0kE-dFz0V7ntjw";
-    //public static String myId     = "516";
-    //public static String friendId = "515";
+    //public static final String JWT_TOKEN   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjU3OSwidXNlcm5hbWUiOiJGYW5ueTEiLCJpYXQiOjE3NzkyMDUxOTAsImV4cCI6MTc3OTI5MTU5MH0.vL3nFHD9bsjGCf2sR3kb2Q5cLHoss1JlAcr-s1Upu4E";
+    //public static String myId     = "579";
+    //public static String friendId = "578";
     //public static final int senderAvatarId = R.drawable.eugene_lee;
 
     //Karine- Harry

@@ -2,6 +2,7 @@ package com.google.amara.chattab;
 
 
 import android.app.Dialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -9,6 +10,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -16,6 +19,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -28,6 +32,7 @@ import com.google.amara.chattab.dao.UserUiStateDao;
 import com.google.amara.chattab.entities.UserUiState;
 import com.google.amara.chattab.ui.main.ChatSharedViewModel;
 import com.google.amara.chattab.ui.main.ChatViewModel;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -81,38 +86,7 @@ public class ChatBoxUsers extends Fragment {
         FloatingActionButton fab = view.findViewById(R.id.fab);
 
         fab.setOnClickListener(v -> {
-
-            loadAllUsers();
-
-            viewModel.getAllUsers().observe(getViewLifecycleOwner(), new Observer<List<ChatUser>>() {
-                @Override
-                public void onChanged(List<ChatUser> users) {
-
-                    if (users == null || users.isEmpty()) return;
-
-                    List<ChatUser> filtered =
-                            removeExistingFriends(users, cachedFriends);
-
-                    AtomicBoolean dialogShown = new AtomicBoolean(false);
-
-                    viewModel.getAllUiStates().observe(getViewLifecycleOwner(), states -> {
-
-                        if (dialogShown.get()) return;
-                        dialogShown.set(true);
-
-                        Map<String, Long> cooldownMap = new HashMap<>();
-
-                        for (UserUiState s : states) {
-                            cooldownMap.put(s.userId, s.lastRejectedAt);
-                        }
-
-                        showUsersDialog(filtered, cooldownMap);
-                    });
-
-                    // 🔥 stop observing users
-                    viewModel.getAllUsers().removeObserver(this);
-                }
-            });
+            startActivity(new Intent(getContext(), FindFriendsActivity.class));
         });
 
         
@@ -136,6 +110,102 @@ public class ChatBoxUsers extends Fragment {
             Log.d("RV", "Height = " + userRecyclerView.getHeight());
         });
 
+        //manage swipe gesture
+        ItemTouchHelper.SimpleCallback callback =
+                new ItemTouchHelper.SimpleCallback(
+                        0,
+                        ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT
+                ) {
+
+                    @Override
+                    public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                        return false;
+                    }
+
+                    @Override
+                    public float getSwipeThreshold(
+                            @NonNull RecyclerView.ViewHolder viewHolder
+                    ) {
+                        return 0.3f;
+                    }
+
+                    @Override
+                    public void onSwiped(
+                            @NonNull RecyclerView.ViewHolder viewHolder,
+                            int direction
+                    ) {
+
+                        int position = viewHolder.getAdapterPosition();
+
+                        ChatUser user = adapter.getCurrentList().get(position);
+
+                        UserUiState state =
+                                adapter.getUserStateMap().get(user.getUserId());
+
+                        boolean sentByMe = false;
+                        String relation = user.getRelationStatus();
+
+                        if (state != null) {
+                            sentByMe = state.sentByMe;
+                            relation = state.relationStatus;
+                        }
+
+                        // -------------------------
+                        // PENDING SENT
+                        // Alice → Bob
+                        // -------------------------
+                        if ("pending".equals(relation) && sentByMe) {
+
+                            if (direction == ItemTouchHelper.LEFT) {
+
+                                viewModel.cancelFriendRequest(user.getUserId());
+
+                                Toast.makeText(
+                                        getContext(),
+                                        "Request cancelled",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            }
+                        }
+
+                        // -------------------------
+                        // PENDING RECEIVED
+                        // Bob → Alice
+                        // -------------------------
+                        else if ("pending".equals(relation) && !sentByMe) {
+
+                            if (direction == ItemTouchHelper.RIGHT) {
+
+                                viewModel.acceptFriend(user.getUserId());
+
+                                Toast.makeText(
+                                        getContext(),
+                                        "Friend accepted",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            }
+
+                            else if (direction == ItemTouchHelper.LEFT) {
+
+                                viewModel.rejectFriend(user.getUserId());
+
+                                Toast.makeText(
+                                        getContext(),
+                                        "Friend rejected",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            }
+                        }
+
+                        adapter.notifyItemChanged(position);
+                    }
+                };
+
+        ItemTouchHelper itemTouchHelper =
+                new ItemTouchHelper(callback);
+
+        itemTouchHelper.attachToRecyclerView(userRecyclerView);
+
         //adapter for 'friend users'
         adapter.setOnUserClickListener(new ChatUserAdapter.OnUserClickListener() {
 
@@ -143,9 +213,10 @@ public class ChatBoxUsers extends Fragment {
             public void onUserClicked(ChatUser user) {
 
                 vm.selectUser(user);
-                Log.d("CHAT_BOX_USER", "User Id = " + user.getUserId());
+                Log.d("CHAT_BOX_USER", "onUserClicked User Id = " + user.getUserId());
                 viewModel.setCurrentFriendId(user.getUserId());
 
+                if(user.getRelationStatus().equals("pending"))return;
 
                 // 🔥 tell Activity to switch tab
                 if (getActivity() instanceof TabChatActivity) {
@@ -160,12 +231,26 @@ public class ChatBoxUsers extends Fragment {
 
             @Override
             public void onAccept(ChatUser user) {
+                Log.d("CHAT_BOX_USER", "onAccept User Id = " + user.getUserId());
                 viewModel.acceptFriend(user.getUserId());
             }
 
             @Override
             public void onReject(ChatUser user) {
                 viewModel.rejectFriend(user.getUserId());
+            }
+
+            @Override
+            public void onAddFriend(ChatUser user) {
+                viewModel.onSendRequest(user);
+            }
+
+            @Override
+            public void onMessage(ChatUser user) {}
+
+            @Override
+            public void onLongPress(ChatUser user) {
+                showBlockDialog(user);
             }
         });
 
@@ -182,6 +267,45 @@ public class ChatBoxUsers extends Fragment {
         */
 
         return view;
+    }
+
+    private void showBlockDialog(ChatUser user) {
+
+        BottomSheetDialog dialog =
+                new BottomSheetDialog(requireContext());
+
+        View view = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_block_user, null);
+
+        dialog.setContentView(view);
+
+        RadioGroup group = view.findViewById(R.id.durationGroup);
+        Button confirm   = view.findViewById(R.id.btn_confirm);
+
+        confirm.setOnClickListener(v -> {
+
+            long durationMs = 0;
+            int checkedId = group.getCheckedRadioButtonId();
+
+            if (checkedId == R.id.oneHour) {
+                durationMs = 3600_000;
+            }
+            else if (checkedId == R.id.oneDay) {
+                durationMs = 24 * 3600_000;
+            }
+            else if (checkedId == R.id.sevenDays) {
+                durationMs = 7 * 24 * 3600_000;
+            }
+            else if (checkedId == R.id.forever) {
+                durationMs = -1;
+            }
+
+            viewModel.blockUser(user.getUserId(), durationMs );
+
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void openUsersDialogOnce() {
@@ -230,6 +354,11 @@ public class ChatBoxUsers extends Fragment {
         */
 
         viewModel.getUserStateMap().observe(getViewLifecycleOwner(), stateMap -> {
+            for (String key : stateMap.keySet()) {
+                Log.d("CHAT_BOX_USER",
+                        "key = " + key +
+                                " relation = " + stateMap.get(key).relationStatus);
+            }
             adapter.setUserStateMap(stateMap);
         });
 
@@ -238,7 +367,7 @@ public class ChatBoxUsers extends Fragment {
         });
 
         viewModel.getFriendUsers().observe(getViewLifecycleOwner(), friends -> {
-           Log.d("CHAT_BOX_USER", "Users friend = " + friends.size());
+           Log.d("CHAT_BOX_USER", "Users friend size list = " + friends.size());
             cachedFriends = friends;
 
             adapter.submitList(friends);

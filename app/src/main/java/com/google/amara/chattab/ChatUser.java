@@ -28,9 +28,14 @@ public class ChatUser implements Serializable,
     @NonNull
     public String userId;
 
-    public boolean isFriend;  // optional but VERY useful
-    public boolean isPending; // optional but VERY useful
+    public boolean  isFriend;  // optional but VERY useful
+    public boolean  isPending; // optional but VERY useful
     private boolean isRejected;
+    private boolean canMessage = true;
+    public boolean  isBlocked = false;
+    private boolean blocked;
+    private long    blockedUntil;
+    private boolean permanentBlock;
 
     public String nickname;             // nickname
     //public String chatId;               // id in the chat
@@ -207,10 +212,12 @@ public class ChatUser implements Serializable,
     public boolean isFriend() {
         return isFriend;
     }
-
     public void setFriend(boolean friend) {
         isFriend = friend;
     }
+
+    public boolean canMessage() {return canMessage; }
+    public void setCanMessage(boolean canMessage) {this.canMessage = canMessage; }
 
     //Parcelable methods
     public ChatUser(Parcel in) {
@@ -275,4 +282,14 @@ public class ChatUser implements Serializable,
     public void setRequestSentByMe(boolean value) {
         this.requestSentByMe = value;
     }
+
+    public long getBlockedUntil() {return blockedUntil; }
+    public void setBlockedUntil(long blockedUntil) {this.blockedUntil = blockedUntil; }
+
+    public boolean getBlocked() {return blocked; }
+    public void setBlocked(boolean blocked) {this.blocked = blocked; }
+
+    public boolean getPermanentBlock() {return permanentBlock; }
+    public void setPermanentBlock(boolean permanentBlock) {this.permanentBlock = permanentBlock; }
+
 }

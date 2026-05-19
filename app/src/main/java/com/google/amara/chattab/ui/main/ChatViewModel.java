@@ -36,7 +36,7 @@ public class ChatViewModel extends AndroidViewModel {
 
     private final MutableLiveData<List<ChatUser>> usersLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<ChatUser>> allUsers      = new MutableLiveData<>();
-    private final MutableLiveData<String>     selectedUserId  = new MutableLiveData<>();
+    private final MutableLiveData<String>     selectedUserId    = new MutableLiveData<>();
     private final MutableLiveData<ChatUser>     selectedUser    = new MutableLiveData<>();
     private final MutableLiveData<String> currentFriendId       = new MutableLiveData<>();
     private final MutableLiveData<Map<Long, UserUiState>> userStates = new MutableLiveData<>(new HashMap<>());
@@ -145,6 +145,7 @@ public class ChatViewModel extends AndroidViewModel {
 
     public void onSendRequest(ChatUser user) {
         String fromUserId = SocketManager.getUserId();
+        Log.d("FRIENDS", "ChatViewModel, fromUserId = " + fromUserId + " : " + user.getUserId() + " : " + user.getNickname() + " :");
         repo.sendFriendRequest(fromUserId, user);
     }
 
@@ -176,7 +177,7 @@ public class ChatViewModel extends AndroidViewModel {
 
     public void setCurrentFriendId(String friendId) {
         //currentFriendId.setValue(friendId);
-        currentFriendId.postValue(friendId);
+        currentFriendId.setValue(friendId);
 
     }
 
@@ -261,6 +262,14 @@ public class ChatViewModel extends AndroidViewModel {
 
     public LiveData<Map<String, UserUiState>> getUserStateMap() {
         return userStateMap;
+    }
+
+    public void loadAllUsers() {
+        repo.loadAllUsers();
+    }
+
+    public void blockUser(String blockedUserId, long durationMs ) {
+        repo.blockUser(SocketManager.getUserId(),blockedUserId, durationMs );
     }
 }
 

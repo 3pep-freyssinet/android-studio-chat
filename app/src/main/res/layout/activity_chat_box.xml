@@ -73,5 +73,16 @@
         android:layout_alignBottom="@id/ll_recycler_activity_chat_box"
         android:layout_alignParentRight="true"
         app:srcCompat="@android:drawable/sym_action_chat" />
+
+
+    <!-- navigation
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:navGraph="@navigation/nav_graph"
+        app:defaultNavHost="true" />
+        -->
 </RelativeLayout>
     <!--  app:srcCompat="@drawable/chat_bubble32"/>  -->
